@@ -1,0 +1,115 @@
+---
+title: "LM Sheet 3"
+output: html_notebook
+---
+
+We continue with salary data frame from problem sheet 2.
+
+```{r}
+salary <- read.table(file="C:/Users/Dom/Documents/GitHub/Stats Work/Year 3/Linear Models/salary.dat", header=TRUE) #read in data in .dat format
+head(salary) #view first six entries of salary
+```
+
+
+(a) Regress log(sl) instead of sl on sx and interpret the coefficient of female.
+
+```{r}
+lm(log(sl) ~ sx, data = salary) #regress logarithm of salary on sex
+```
+
+This model indicates being male adds 0.1524 to the logarithm of the salary, so males earn 1.1524 times as much as females.
+
+(b) Fit the linear model (say, lsdy.fit)
+log(sli) = ??0 + ??1sxi + ??2dgi + ??3ydi + ??4dgiydi + ??i
+Describe the combined effects of dg and yd, and the effect of sx on salary (not on logsalary).
+Is there evidence of sex discrimination according to this model? Do we still
+need the interaction term?
+
+```{r}
+lsdy.fit <- lm(log(sl) ~ sx + dg + yd +dg*yd, data = salary) #regress model
+lsdy.fit
+```
+
+The coefficients imply having a postgraduate degree multiplies earnings by 1.22851, each year subsequent to graduating multiplies earnings by 1.02613, and having a postgraduate degree gives a .01942 greater multiplier per year.
+
+(c) Compute the jack-knifed residuals and plot them against fitted values from lsdy.fit.
+Compare the plot for log-salary with the original plot for salary in dollars. Comment on
+any observations with jack-knifed residuals exceeding two in absolute value.
+
+```{r}
+library(MASS)
+jkresid <- studres(lsdy.fit) #calculate jack-knifed residuals
+plot(lsdy.fit$fitted.values, jkresid) #plot against fitted values
+abline(a=-2, b=0); abline(a=2, b=0); #add lines at 2, -2
+plot(salary$sl) #plot salary
+plot(log(salary$sl)) #plot log-salary
+```
+The log-salary plot appears to follow a straight line better than the salary plot, suggesting our transformation is apt.
+
+There are 2 observations with jack-knifed residuals greater than 2 in absolute value. These may have undue influence on the model fit and should be investigated further, potentially for omission.
+
+(d) Compute the leverages and Cook's distances and list any noteworthy observations. How
+do the leverages for this model compare with sdy.fit? Has the log transformation
+helped moderate the actual influence of some observations?
+
+```{r}
+lev <- hatvalues(lsdy.fit) #leverage
+cd <- cooks.distance(lsdy.fit) #cook's distance
+plot(lev, cd)
+```
+ Compared to the previous model (sheet 2), there appears to be similar leverage and lower cook's distance, suggesting the log transform has reduced the influence of some observations.
+
+(e) Plot log-salary against a measure of qualifications and experience based on lsdy.fit,
+and compare your results with that obtained from sdy.fit.
+
+```{r}
+
+salary$dy <- (salary$dg =="doctorate") * 0.22850653 + salary$yd * 0.02613256 #create new measure
+plot(salary$dy, log(salary$sl)) #plotlog-salary against this
+```
+
+
+(f) Re-fit the model (1) omitting the observation with the largest Cook's distance. What
+happens to the sex differential controlling for dg and yd if we omit this case? What
+other coefficients are affected?
+
+```{r}
+which(cd == max(cd)) #find observation with largest cd
+salary1 <- salary[-24,] #create new frame without observation 24
+lsdy.fit1 <- lm(log(sl) ~ sx + dg + yd +dg*yd, data = salary1) #regress model
+lsdy.fit1
+```
+
+sxmale, the sex differential controlled, increases. The other coefficients do not change much.
+
+(g) The model (1) relies on the assumption that the combined effects on (log) salary of
+qualification and experience are the same for men and women. Test this assumption
+using an F-test including all observations. Do you think your conclusion would change
+if you excluded the most influential observation?
+
+Test
+H0: log(sl) ~ sx + dg + yd + dg*yd
+H1: log(sl) ~ sx + dg + yd + dg*yd + dg*yd*sx
+```{r}
+lsdy.fit2 <- lm(log(sl) ~ sx + dg + yd + dg*yd + dg*yd*sx, data = salary) #fit alternative model
+anova(lsdy.fit, lsdy.fit2) #perform f-test
+```
+
+Our p-value is not significant here, so accept null hypothesis that the mixed effect of qualification and experience is sex-neutral.
+
+The p-value is sufficiently large that removing one observation would not change the conclusion, regardless of influence.
+
+(h) Check that taking logs was a good idea by trying Box-Cox transformations in the range
+(???2, 2) and plotting the profile log-likelihood for the model with sx, dg, yd and dg*yd.
+You may use the function boxcox from the R package MASS. Did we need to transform
+the data? Was the natural logarithm a good transformation?
+
+```{r}
+bc <- boxcox(lsdy.fit, lambda = seq(-2, 2, length.out=10))
+
+```
+
+This is maximised outside the range (-2,2) so the transform is not justified.
+
+///////////////////////////////////////////////////////////
+

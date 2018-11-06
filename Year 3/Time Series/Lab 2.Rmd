@@ -1,0 +1,99 @@
+---
+title: "TSA Lab 2"
+output: html_notebook
+---
+
+1. Simulate observations from a purely random process
+
+
+```{r}
+z = rnorm(n=300, mean=0, sd=1)
+ts.plot(z, main="A purely random process")
+
+```
+
+```{r}
+# Define our own version of the autocorrelation
+rk=function(x,k) {
+n = length(x)
+x1 = x[1:(n-k)]
+x2 = x[(1+k):n]
+meanx = mean(x)
+r = sum((x1-meanx)*(x2-meanx))/sum((x-meanx)^2)
+return(r)
+}
+# Try out our version
+rk(z,1)
+rk(z,2)
+# R has its own function to compute it: acf(), let's try it...
+z.acf=acf(z,plot=T)
+z.acf
+```
+
+2. Simulate observations from a random walk
+```{r}
+# Show the help for the cumsum() function
+?cumsum
+# Now simulate a random walk...
+x <- cumsum(rnorm(n=300, mean=0, sd=1))
+# ... and now plot the simulated random walk...
+ts.plot(x,main="Random walk")
+```
+
+3. Simulate observations from a moving average process
+
+```{r}
+# Simulate the MA(2) process Xt = Zt ??? 1.3Zt???1 + 0.4Zt???2
+ma.sim=arima.sim(model=list(ma=c(-1.3,0.4)), n=300)
+# Plot the time series and the correlogram of this simulated series
+par(mfrow=c(2,1))
+ts.plot(ma.sim, main="MA(2)")
+ma.acf = acf(ma.sim, type="correlation", plot=T)
+ma.acf
+
+```
+
+4. Simulate observations from an autoregressive process
+
+```{r}
+# Simulate N = 300 observations from an AR(1) process defined as Xt = 0.9Xt???1 + Zt
+ar1p.sim = arima.sim(model = list(ar=c(0.9)), n = 300)
+par(mfrow = c(2,1))
+ts.plot(ar1p.sim, main = "AR(1) with coefficient 0.9")
+# Let's look at this simulated data's sample acf, and see if it matches the model value.
+ar1p.acf = acf(ar1p.sim, plot = T)
+ar1p.acf
+# Calculate sample partial autocorrelation coefficient
+ar1p.pacf = pacf(ar1p.sim, plot = T)
+ar1p.pacf
+
+```
+
+Exercises
+
+1.Simulate N = 300 observations from Xt = ???0.9Xt???1 + Zt, where {Zt} is a purely randomprocess with mean 0 and variance 1. Plot the simulated time series and its correlogram.
+
+```{r}
+ar1p.sim = arima.sim(model = list(ar=c(-0.9)), n = 300)
+par(mfrow = c(2,1))
+ts.plot(ar1p.sim, main = "AR(1) with coefficient -0.9")
+
+ar1p.acf = acf(ar1p.sim, plot = T)
+ar1p.acf
+```
+
+
+2. Simulate N = 300 observations from an AR(2) process defined as Xt = 0.9Xt???1 ???0.2Xt???2 +Zt,where {Zt} is a purely random process with mean 0 and variance 1. Plot the simulated timeseries, its correlogram and partial autocorrelation coefficients.
+
+```{r}
+ar2p.sim = arima.sim(model = list(ar=c(0.9, -0.2)), n = 300)
+par(mfrow = c(3,1))
+ts.plot(ar1p.sim, main = "AR(2) with coefficients 0.9, -0.2")
+
+ar2p.acf = acf(ar2p.sim, plot = T)
+ar2p.acf
+
+ar2p.pacf = pacf(ar2p.sim, plot = T)
+ar2p.pacf
+```
+

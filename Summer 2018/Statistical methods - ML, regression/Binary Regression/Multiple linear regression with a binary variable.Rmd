@@ -1,0 +1,210 @@
+---
+title: "Multiple Regression with a Binary Variable"
+output: github_document
+always_allow_html: yes
+
+---
+https://en.wikipedia.org/wiki/Linear_regression
+In statistics, linear regression is a linear approach to modelling the relationship between a scalar response (or dependent variable) and one or more explanatory variables (or independent variables). The case of one explanatory variable is called simple linear regression. For more than one explanatory variable, the process is called multiple linear regression.
+
+I'll produce another model using data from a bike sharing system. I have previously used this dataset with simple and multiple linear models to predict a continuous dependent variable using strictly continuous variables, but in this example I will attempt to predict values of the dependent variable using a binary variable, "workingday", which is TRUE when the observation was recorded on a non-holiday weekday.
+
+http://archive.ics.uci.edu/ml/datasets/Bike+Sharing+Dataset
+  "Bike sharing systems are new generation of traditional bike rentals where whole process from membership, rental and return back has become automatic. Through these systems, user is able to easily rent a bike from a particular position and return back at another position. Currently, there are about over 500 bike-sharing programs around the world which is composed of over 500 thousands bicycles. Today, there exists great interest in these systems due to their important role in traffic, environmental and health issues."
+  
+Attribute Information:
+- instant: record index
+- dteday : date
+- season : season (1:springer, 2:summer, 3:fall, 4:winter)
+- yr : year (0: 2011, 1:2012)
+- mnth : month ( 1 to 12)
+- holiday : weather day is holiday or not (extracted from [Web Link])
+- weekday : day of the week
+- workingday : if day is neither weekend nor holiday is 1, otherwise is 0.
++ weathersit : 
+- 1: Clear, Few clouds, Partly cloudy, Partly cloudy
+- 2: Mist + Cloudy, Mist + Broken clouds, Mist + Few clouds, Mist
+- 3: Light Snow, Light Rain + Thunderstorm + Scattered clouds, Light Rain + Scattered clouds
+- 4: Heavy Rain + Ice Pallets + Thunderstorm + Mist, Snow + Fog
+- temp : Normalized temperature in Celsius. The values are derived via (t-t_min)/(t_max-t_min), t_min=-8, t_max=+39 (only in hourly scale)
+- atemp: Normalized feeling temperature in Celsius. The values are derived via (t-t_min)/(t_max-t_min), t_min=-16, t_max=+50 (only in hourly scale)
+- hum: Normalized humidity. The values are divided to 100 (max)
+- windspeed: Normalized wind speed. The values are divided to 67 (max)
+- casual: count of casual users
+- registered: count of registered users
+- cnt: count of total rental bikes including both casual and registered
+
+```{r initial}
+#load tidyverse for easy manipulations, visualisations etc
+library(tidyverse)
+library(GGally)
+
+#read in the dataset
+dataset <- read_csv("~/homework env/day.csv")
+
+#take a look at the data
+head(dataset)
+
+#get a summary of the data
+summary(dataset)
+str(dataset)
+```
+
+So "dataset" is a data frame with 731 rows and 16 columns. Each row represent a single entry, one day, in which data is recorded about climate conditions, such as temperature and humidity, and the number of bike rentals which occur. This information is stored in the columns.
+
+First of all, I'll get to know a bit more about my variable of interest, "workingday", and see if I can obtain any insight regarding its' behaviour.
+
+```{r explore count}
+#count number of working days and non-working days
+dataset %>%
+  group_by(workingday)%>%
+  count()
+```
+The data contains 231 observations on non-working days, and 500 recorded on working days.
+
+```{r workmeans}
+#calculate non-working day mean count
+nonwork_mean <- dataset %>%
+  filter(workingday == 0)%>%
+  summarise( mean(cnt))
+#calculate working day mean count
+work_mean <- dataset %>%
+  filter(workingday == 1)%>%
+  summarise( mean(cnt))
+
+#print means
+nonwork_mean 
+work_mean
+
+```
+There is a difference in the mean count of bike rentals on working and non-working days; I could examine whether this difference is significant using a hypothesis test on a parameter and unknown probabilistic distribution, but simply observing a difference is enough to warrant an investigation. I'll find out the mixed effect upon constructing the model.
+
+I'm building another multiple linear regression, so I'll need to select which of the (continuous) explanatory variables to include in my model. As a reminder, I'll take a look at the correlation coefficients of these variables.
+
+```{r var select}
+#set y as "cnt" column
+y<- select(dataset, cnt)
+#select subset of continuous-value variables
+x<- select(dataset, temp, atemp, hum, windspeed)
+
+#get correlation coefficents
+cor(x,y)
+#plot correlations
+ggcorr(c(x,y))
+```
+
+Seemingly, "temp" and "atemp" are fairly strongly, positively, corellated with "cnt", while "hum" and "windspeed" are weakly, negatively correlated. I could use a selection procedure (forward, backward, mixed) to select these within a logical framework.
+
+Previously, I selected "atemp", "temp", and "windspeed", discarding "hum". Given "windspeed" is also weakly correlated, and that I am now introducing a new explanatory variable which should provide more information to the model, I will discard "windspeed" too.
+
+```{r newdata}
+newdata <- select(dataset, cnt, temp, atemp, workingday)
+newdata$workingday <- as.logical(newdata$workingday)
+summary(newdata)
+```
+
+Let's see the variables plotted against each other.
+
+```{r matrix plot}
+#create scatterplot matrix of explanatory variables
+ggpairs(newdata, title = "Scatterplot Matrix") 
+```
+
+Thus, the relationships are visualised. Note again the (easily explainable) link between "temp" and "atemp".
+
+And now I'll visualise my data to get the gist of how each variable is distributed. 
+```{r hist plot}
+#plot histograms of continuous vars
+ggplot(gather(newdata), aes(value)) + 
+  geom_histogram(bins = 10) + 
+  facet_wrap(~key, scales = 'free_x') +
+  labs(y="frequency", title = "Histograms of count frequency, by variable") 
+```
+
+
+
+Again, I wish to solve the equation
+
+Y= B0 + B1 * X1 + B2 * X2 + B3 * X3
+
+Where Y = Count, X1 = Air Temperature, X2 = Temperature, X3 = workingday, B0 is my intercept, and Bi denotes the slope coefficient for each Xi. This differs from the linear model in the respect that workingday is binary, and thus can only take the values 0 and 1.  The "lm" function will optimise the values for my {Bi} by minimising the sum of the squares of the distances between my data points and the regression line (The "Least Squares" approach).
+```{r centre}
+# Centre predictors
+atemp.c = scale(newdata$atemp, center=TRUE, scale=FALSE)
+temp.c = scale(newdata$temp, center=TRUE, scale=FALSE)
+
+# bind these new variables into newdata and display a summary
+new.c.vars = cbind(atemp.c, temp.c)
+newdata = cbind(newdata, new.c.vars)
+names(newdata)[5:6] = c("atemp.c", "temp.c" )
+summary(newdata)
+```
+
+```{r fit}
+#fit the model
+mod = lm(cnt ~ atemp.c + temp.c + workingday, data = newdata)
+
+#summarise results
+summary(mod)
+```
+
+I'll create 3 plots to examine the model: Two 2D visualisations of cnt against workingday, with atemp and temp respectively, and a 3D scatterplot of the whole model.
+
+First, cnt against atemp and workingday.
+```{r plot atemp workingday}
+#load broom package for augmentation of model to obtain fitted values
+library(broom)
+#plot cnt against atemp, using workingday 
+ggplot(augment(mod), aes(x=atemp.c, y=cnt, colour=workingday )) +
+  geom_point() +
+  geom_line(aes(y = .fitted))
+```
+
+Now cnt against temp and workingday
+```{r plot temp workingday}
+#plot cnt against temp, using workingday 
+ggplot(augment(mod), aes(x=temp.c, y=cnt, colour=workingday )) +
+  geom_point() +
+  geom_line(aes(y = .fitted))
+```
+
+And plot this model as a scatterplot in 3 dimensions.
+
+```{r model visualise}
+library(plotly)
+#plot scatter
+plot_ly(newdata, x = ~atemp.c, y = ~temp.c, z = ~cnt,
+        marker = list(color = ~as.numeric(workingday), showscale = TRUE )) %>%
+  add_markers() %>%
+  layout(scene = list(xaxis = list(title = 'Air Temp', range = range(newdata$atemp.c)),
+                     yaxis = list(title = 'Temp', range = range(newdata$temp.c)),
+                     zaxis = list(title = 'Count', range = range(newdata$cnt))),
+         annotations = list(
+           text = 'workingday',
+           showarrow = FALSE
+         ))
+
+```
+
+I can make a few observations from my results:
+-On working days, I can expect an average of 117.5 more occurances of rentals, controlling for the temperature and air temperature.
+
+-The expected count is 4424, factoring in expectations of the other variables
+
+-The R^2 value, 0.3992, is smaller than the simple linear model's R^2 of 0.4142, and hence explains even less of the variance of the data.
+
+-None of the variables are significant at the .05 level
+
+I'll examine the residuals for more information.
+```{r residuals}
+
+ggplot(mod, aes(x=.fitted, y=.resid)) + 
+  geom_point() +
+  geom_smooth() +
+  labs(x="Fitted values", y="Residuals", title = "Residual Plot")
+
+```
+
+Once more, there is a trend in the residuals, and many fall far from the trend line. This also suggests poor model performance. The parallel slopes model is no improvement over the multilinear case.
+
+In summary, I have fitted a multiple linear regression with a binary variable to data (instances of bike shares) to examine a potential link between observed values of variables (air temperature, temperature, weekday, and quantities rented), building on my previous attempts using continuous variables.. Using residual analysis, I have evaulated the performance of this model, and concluded the model is yet again far from the optimal choice.

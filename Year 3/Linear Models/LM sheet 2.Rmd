@@ -1,0 +1,105 @@
+---
+title: "LM sheet 2"
+output: html_notebook
+---
+
+salary.dat uploaded on Blackboard has some data on the salaries of n = 52 faculty in a small
+college in US. An issue is the extent to which women are paid less than men in comparable
+positions. 
+
+The data frame contains 
+sx (gender, two levels: female, male), 
+rk (rank, three levels: assistant, associate, full), 
+yr (years at rank, numeric), 
+dg (highest degree, two levels: doctorate, masters), 
+yd (years since degree, numeric) 
+and sl (salary, numeric) which serves as the response.
+
+```{r}
+library(dplyr)
+salary <- read.table(file="C:/Users/Dom/Documents/GitHub/Stats Work/Year 3/Linear Models/salary.dat", header=TRUE) #read in data in .dat format
+head(salary) #view first six entries of salary
+```
+
+"Regress salary on sx and interpret the resulting coefficients. Is there evidence of gender
+discrimination?"
+
+```{r}
+lm( salary$sl ~ salary$sx) #model relationship between salary and sex
+```
+
+This cursory analysis indicates that the expected difference between male and female employees is $3340, though there are more factors in play.
+
+////
+
+"Before drawing conclusions, we should control for differences in qualifications and experience.
+One might be tempted to control for rank and years at rank, but what if
+there is discrimination in promotion? A better approach is to control for highest degree
+and years since the degree was earned. We also add an interaction between these two
+variables to allow possibly higher salary for PhD holders with experience. Fit a model
+with these predictors and interpret all coefficients starting with the constant. Is there
+evidence of discrimination in salaries when you adjust for degree and years since degree?
+Did we need the interaction term?"
+
+```{r}
+model <- lm(salary$sl ~ salary$sx + salary$dg + salary$yd + salary$dg*salary$yd) #fit model of salary against sex, degree, years since degree and a mixed effect
+model
+```
+
+The intercept indicates a woman hired straight after finishing a masters' degree would expect to earn $14526.80. 
+Having a doctoral degree increases the expected earnings by $4423.10.
+Each year since the degree adds $612.80 to expected earnings for a doctor, but $437.50 less for a masters' holder.
+
+This leaves us, after controlling for these variables, with a $1809.70 premium for being male.
+
+////
+
+"Compute the jack-knifed residuals and plot them against the fitted values. You may do
+so manually or use existing R functions by searching for the relevant ones. What does
+the plot indicate? Comment on any observations with jack-knifed residuals exceeding
+two in absolute value. Can you formally consider them outliers?"
+
+```{r}
+jkres <- rstudent(model) #calculate jack-knifed residuals for model
+plot(model$fitted.values, jkres) #plot jack-knifed residuals against fitted values
+abline(a=2,b=0)
+abline(a=-2,b=0) #add lines at significance cutoff
+```
+
+These appear to be uniform around 0, meaning the model meets the assumption of linearity.
+There are 3 observations for which he magnitude of the residual is greater than 2, meaning considering the model without them changes the estimator of the corresponding parameter to a large degree.
+To formally decide if these are significant outliers, I would perform a hypothesis test on the jack-knifed results with the t distribution.
+
+////
+
+"Compute the leverages and Cook's distances. Again, you may compute them manually
+or use existing R functions. List any observations that have high leverage (exceeding
+2p/n). Did their leverage translate into actual influence? Find the observation with the
+largest Cook's distance. Does it exceed the usual rule of thumb that considers influence
+excessive when it exceeds one? Would removing this observation affect the results?"
+
+```{r}
+#X <- cbind(1,salary$sx,salary$dg,salary$yd,salary$dg*salary$yd) #assign design matrix X
+
+h <- hatvalues(model) #influence
+D <- cooks.distance(model) #cook's distance
+plot(h, D)
+max(D) #return greatest cook's distance
+which(D == max(D)) #find which observation has the greatest
+```
+
+I can see that no single observation has a Cook's distance greater than 0.5, so none are problematic or exert actual undue influence.
+
+////
+
+"One way to depict gender differences adjusted for qualifications and experience is to use
+the regression equation of (c) in order to combine dg and yd into a single measure of
+qualifications and experience, say dy, adopting their regression coefficients as weights.
+Plot sl versus dy using different symbols for males and females."
+
+```{r}
+salary$dy <- (salary$dg =="doctorate") * 4423.1 + salary$yd * 612.8 #append new column of single measure, dy
+salary$dy
+plot(salary$dy, salary$sl) #plot salary against dy
+```
+

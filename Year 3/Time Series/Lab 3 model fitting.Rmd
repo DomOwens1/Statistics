@@ -1,0 +1,123 @@
+---
+title: "Time Series Lab 3: Model Fitting"
+output: html_notebook
+---
+
+1. Fitting the AR model
+
+I will be using the lynx dataset
+
+```{r}
+head(lynx) #look at the first results of lynx
+ts.plot(lynx) #plot as a time series
+acf(lynx) #plot autocorellation function
+```
+
+There is evidently a 10-year sinusoidal seasonality effect, meaning the series is not stationary - the average changes over time.
+
+```{r}
+ts.plot(log(lynx)) #time-plot the logarithm of the lynx dataset
+acf(log(lynx), type="partial") #partial-acf plot for log-lynx
+```
+
+This damps the seasonality effect to the point where the partial autocorrelation is no longer significant beyond lag k=1 (as indicated by the dotted horizontal lines on the plot).
+The series is now stationary, so I can fit a model.
+
+```{r}
+llynx.ar <- ar.yw(log(lynx)) #fit the AR model to log-lynx
+llynx.ar$order.max #request highest value of order to fit model to
+llynx.ar$aic #request information criterion for order-values
+plot(0:llynx.ar$order.max,llynx.ar$aic,main="AIC for Log(lynx)",xlab="p",ylab="AIC") #plot AIC 
+```
+
+I can see that the AIC is lowest at p=11. I now need to obtain the parameters for my model from the llynx object, namely coefficients of Xt and the mean estimate.
+
+```{r}
+llynx.ar$ar #find coefficients up to order p=11
+llynx.ar$x.mean #find mean estimate
+
+ts.plot(log(lynx)-llynx.ar$resid) #time series plot the fit of the model
+lines(log(lynx),col=2) #overlay a red line of the original series
+```
+Observing the graph, it seems I have found a suitable model for the series.
+
+However, the AIC plot also showed the order p=3 model would fit nearly as well as the p=11 model, but would be much simpler. I'll compare the two options.
+
+```{r}
+llynx.ar2 <- ar.yw(log(lynx), order.max = 3) #fit a new model of order 3
+ts.plot(log(lynx)-llynx.ar2$resid) #time series plot the fit of the model
+lines(log(lynx),col=2) #overlay a red line of the original series
+```
+
+This seems to also be an adequate model for the series, though seems to underestimate the peaks of the series.
+
+////////////////////////////////////////////////////////////////////////////////////
+
+2. Fitting the ARIMA model
+
+I'll be using the dataset wool. 
+
+  "The wool data set contains prices monitored by the Australian Wool Corporation from June 1976
+to June 1984. The prices are monitored weekly with some breaks for public holidays, for example
+over the Christmas period there is a break of several weeks. Before the start of each week the
+Corporation sets a floor price for the week. The Corporation guarantees that it will pay this price
+for the wool during the week. The actual price of the wool is an average taken over the following
+week and is never less than the floor price (otherwise they could have sold it to the Corporation
+and made more money)"
+
+I can look at the ratio of actual to floor price as this will compensate for trends such as those
+caused by currency fluctuations and inflation.
+Price movements are often multiplicative in nature (so price
+increases/decreases tend to be discussed in percentage terms rather than absolute terms), giving reason to use the logarithm of the ratio.
+
+```{r}
+load(url("https://people.maths.bris.ac.uk/???magpn/TSA/TSA.RData")) #load data
+summary(wool) #summarise dataset
+head(wool) #view first 6 observations
+```
+
+I will fit the ARIMA model to the series {Lt}, ignoring missing days.
+I first need to establish stationarity.
+
+```{r}
+ts.plot(wool[,10]) #time series plot for the log of the ratio
+```
+
+This is clearly not stationary, so I take the difference.
+
+```{r}
+ts.plot(diff(wool[,10])) #time series plot the differenced series of Lt
+```
+
+By observation, the variance seems to change after t=100. I wish to forecast future results, so I discard the first 100 and consider the later results.
+
+```{r}
+tmp <- diff(wool[,10]) #create vector of differenced Lt
+woolly <- tmp[101:309] #select last 209 observations
+acf(woolly) #plot autocorrelation function
+```
+
+From the acf, I have evidence that my observations may come from the white noise model. I could consider the second and fourth autocorrelations in my model, though parsimony dictates that I should make do with the least information possible for a sufficient model. 
+No other pattern is visible in the acf, such as trend or seasonality.
+
+I use the first model 
+
+Lt - Lt-1 = mu + Zt
+
+where Zt is a standard normal process, and mu is the mean of the differenced process.
+
+I'll test the hypothesis Ho: mu=0 against H1: mu =/= 0
+
+```{r}
+t.test(woolly) #perform t-test on the sample mean of woolly
+var(woolly) #find sample variance
+```
+
+Which suggests I keep the null hypothesis at the p=0.1 significance level, and assign variance of 0.00019 to Z.
+
+```{r}
+woolly.arima <- arima(woolly) #fit arima model
+ts.plot(woolly - woolly.arima$residuals) #time series plot the fit of the model
+lines(woolly,col=2) #overlay original series in red
+```
+

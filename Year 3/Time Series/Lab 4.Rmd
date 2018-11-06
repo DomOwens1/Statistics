@@ -1,0 +1,230 @@
+---
+title: "TSA lab 4"
+output: html_notebook
+---
+
+
+
+```{r}
+load(url("https://people.maths.bris.ac.uk/???magpn/TSA/TSA.RData")) #access data
+```
+
+1 Fitting an ARIMA model
+
+This is a continuation of Example 2 in Lab One. The land-air temperature anomalies (from 1961-
+1990 average), measured in degrees centigrade, for the years 1900-1997, are stored in the data set
+gtemp. We follow the flowchart to identify whether an ARIMA model is appropriate for this data
+set.
+
+
+(a) Plot the time series. Does it look stationary in mean? If not, difference the data using the
+R function diff() and put it into another vector called dgtemp. Plot the differenced data.
+Does it appear stationary? If so, then set the order of differencing d = 1, otherwise difference
+again and increase d accordingly. (Actually, d = 1 looks reasonable).
+
+```{r}
+ts.plot(gtemp) #plot gtemp data
+
+#this doesn't look stationary
+
+dgtemp <- diff(gtemp) #difference gtemp
+ts.plot(dgtemp) # plot differenced data
+
+#this does look stationary
+```
+
+(b) Plot the correlogram of the differenced data using the acf() function. Are any of the correlation
+coefficients much larger than the tolerance limits?
+
+```{r}
+acf(dgtemp) #plot autocorrellation of differenced gtemp
+
+```
+
+None of the lags are significantly large, other than k=0.
+
+(c) Plot the partial correlogram of the differenced data. Are any of the partial autocorrelation
+coefficients much larger than the tolerance limits?
+
+```{r}
+pacf(dgtemp) #plot partial autocorrellation of differenced gtemp
+
+```
+
+Lags k=2 and k=3 are significantly larger than the tolerance interval.
+
+(d) Suggest a suitable model for the difference data and write down the fitted model. Hint: The
+fit can be obtained with the arima() function.
+
+I have that d=1 since I have differenced the series once to obtain a stationary sequence. 
+The PACF indicates I should use p=3 for the AR parameter, as the last significant time step with correllation not accounted for by the ACF is at step 3.
+The ACF implies I should use q=0, as there are no significant correlations with previous time steps.
+Hence, I use the model ARIMA(3,1,0) for the gtemp series.
+
+```{r}
+arima(gtemp, order = c(3,1,0))
+```
+
+So I have the model dXt = -0.3351Xt-1 -0.3245Xt-2 -0.3388Xt-3 +Zt
+
+//////////////////////////////////
+
+2 Exponential smoothing
+
+(a) Implement the es() function now in R (type in the above definition of es() just as it appears.
+You can type RETURN wherever any space occurs to split the typing over more than one
+line).
+
+```{r}
+es <- function(x, alpha){sum(rev(x)*alpha*(1-alpha)^(0:(length(x)-1)))} #define es function
+```
+
+
+(b) Now create a new data vector from the Lynx data by copying all the observations in the Lynx
+data set apart from the last one by using the command
+lynx2 <- lynx[1:113]
+The last value of the lynx data set is lynx[length(lynx)] which is l114 = 3396.
+
+```{r}
+lynx2 <- lynx[1:113] #define 1-step lynx vector
+```
+
+
+(c) Now use exponential smoothing on lynx2 with varying values of ??. For example, es(lynx2,0.2),
+try some others. This can be done by the following R commands.
+forecasts=NULL
+alphas=seq(from=0.1, to=1, by=0.05)
+for(i in alphas) forecasts=c(forecasts, es(lynx2,i))
+plot(alphas, forecasts)
+The plot suggests that the best value of ?? = 1 as this is closest to the true value l114 = 3396.
+However, the above procedure is not very good for the lynx data set because of the seasonality
+in the data.
+
+```{r}
+forecasts=NULL
+alphas=seq(from=0.1, to=1, by=0.05) #define incremental vecotr from 0.1 to 1
+for(i in alphas) forecasts=c(forecasts, es(lynx2,i)) #apply es to each alpha value
+plot(alphas, forecasts) #plot alphas against exponential smooth
+
+```
+
+
+(d) To try and correct for the obvious cyclic behaviour (every 10 years?) in the series, create a
+new series from the lynx set by differencing the data with a lag of 10. In other words, if the
+lynx series is represented by lt form
+dt = lt ??? lt???10 for t = 11, . . . , 114.
+In R you can do this by
+lynx10 <- diff(lynx, lag=10)
+Plot the new differenced time series (use ts.plot). This looks less seasonal.
+
+```{r}
+lynx10 <- diff(lynx, lag=10) #difference lynx at lag k=10
+ts.plot(lynx10) #plot differenced series
+```
+
+
+(e) Suppose we are interested in finding a forecast for LN+1. Rewrite the formula in part (d) to
+get
+Lt = Dt + Lt???10.
+We have capitalized letters because we are dealing with the idea of what the model is behind
+the process. Then stepping one time step into the future gives
+Lt+1 = Dt+1 + Lt???9.
+When we are trying to forecast LN+1 we just set t = N into the equation, i.e., LN+1 =
+DN+1 + LN???9.
+
+
+
+(f) Use exponential smoothing on the Dt to get a "sensible" estimate for DN+1. Then we may
+use this estimate and the actual value lN???9 to obtain an estimate of LN+1.
+Suppose that we have lynx2, i.e, l1, l2, . . . , l113, and we are trying to forecast l114 = 3396 (so
+pretend we don't know l114 for the time being). Then using the diff command it is possible
+to compute
+dt = lt ??? lt???10 for t = 11, . . . , 113.
+The formula for the estimate of L114 is
+L114 = D114 + l104
+(we are pretending l114 is unknown at this stage). We know l104 from the data and we can
+estimate D114 from exponential smoothing of the dt
+, for t = 11, . . . , 113. We can perform the
+estimation for L114 by using the R commands
+
+```{r}
+lynx10.2=diff(lynx2,lag=10) #define copy of lynx10
+forecasts=NULL
+alphas=seq(from=0.1, to=1, by=0.01)
+for(i in alphas) forecasts=c(forecasts,lynx[104]+es(lynx10.2,alpha=i))
+plot(alphas, forecasts)
+abline(h=lynx[114])
+locator(1) 
+```
+
+The plot from these commands is shown in Figure 1. The last line in the commands plots a
+horizontal line at the value of l114. You can see that the closest forecast is around the value of 0.33. In fact, you can find out by typing locator(1)
+which allows you to click on the plot with the mouse, after clicking R returns the coordinates
+on the plot where you clicked. Therefore, our best choice of alpha is 0.33. You can now
+forecast L114 by typing
+
+```{r}
+lynx[104]+es(lynx10.2,alpha=0.33)
+```
+
+and you should get ^l(113, 1) ??? 3393, which is better than the previous estimate.
+
+You should also try the following R commands to forecast by using the AR model which we fitted
+in Lab Three to the log of the lynx data. This method is essentially Box-Jenkins forecasting.
+
+```{r}
+llynx=log(lynx)
+llynx2=llynx[1:113]
+fit=arima(llynx2,order=c(11,0,0))
+predict(fit,n.ahead=1)
+```
+
+Exercise. Recife Dataset
+(a) Create a new data vector from the recife data by copying all the observations apart from
+the last 12 observations by using the command
+recife2=recife[1:108]
+We are pretending the last 12 observations are unknown. We'll fit a model to recife2 and
+find forecasts for up to 12-steps ahead.
+
+```{r}
+recife2=recife[1:108] #define shorter recife vector
+ts.plot(recife2)
+```
+
+
+(b) Estimate the seasonal effects of recife2. Then work with the deseasonalized data. Follow
+the ARIMA fitting flowchart in your notes to suggest a suitable model for the deseasonalized
+data and write down the estimated model.
+
+```{r}
+acf(recife2) # plot acf of recife2
+#this indicates a seasonality period of 12
+recife2.12 <- diff(recife2, lag = 12) #define vector of differenced series at lag 12
+
+ts.plot(recife2.12) #plot deseasonalised series
+#this appears stationary, so d=0
+
+acf(recife2.12) #plot acf of recife2.12
+#These are significant to lag 3, so use q=3 (lag 12 is significant, but I know the series holds a seasonal property so I can ignore this)
+#This does appear to cut off, though I'll investigate the pacf to determine whether a non-zero parameter p is needed
+
+pacf(recife2.12) #plot pacf
+#this cuts off at p=1, so I'll use this parameter in the model.
+
+```
+
+I now have reason to believe the ARMA(1,3) model is suitable.
+
+```{r}
+fit <- arima(recife2, order = c(1,0,3), seasonal = list(order = c(0, 0, 0), period = 12)) #fit ARMA(1,3), seasonal model to the series
+fit
+```
+
+So I have the model Xt = 0.4383Xt-1 +Zt  +0.5403Zt-1  +0.5207Zt-2  +0.4292Zt-3    +25.7579
+
+(c) Find forecasts for up to 12-steps ahead. (Don't forget to add back the seasonal effects.)
+
+```{r}
+predict(fit, n.ahead = 12)
+```
+

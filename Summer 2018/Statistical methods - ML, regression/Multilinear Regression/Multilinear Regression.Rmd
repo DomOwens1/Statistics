@@ -1,0 +1,159 @@
+---
+title: "Multilinear Regression"
+output: github_document
+always_allow_html: yes
+
+---
+https://en.wikipedia.org/wiki/Linear_regression
+Linear regression is a linear approach to modelling the relationship between a scalar response (or dependent variable) and one or more explanatory variables (or independent variables). For more than one explanatory variable, the process is called multiple linear regression.
+
+I'll produce a multilinear model using data from a bike sharing system; I saw in my previous attempt at a linear model that using only one explanatory variable lead to an insufficient model.Hopefully, utilising more of the information available in the dataset will result in a better-performing model.
+
+http://archive.ics.uci.edu/ml/datasets/Bike+Sharing+Dataset
+  "Bike sharing systems are new generation of traditional bike rentals where whole process from membership, rental and return back has become automatic. Through these systems, user is able to easily rent a bike from a particular position and return back at another position. Currently, there are about over 500 bike-sharing programs around the world which is composed of over 500 thousands bicycles. Today, there exists great interest in these systems due to their important role in traffic, environmental and health issues."
+  
+Attribute Information:
+- instant: record index
+- dteday : date
+- season : season (1:springer, 2:summer, 3:fall, 4:winter)
+- yr : year (0: 2011, 1:2012)
+- mnth : month ( 1 to 12)
+- holiday : weather day is holiday or not (extracted from [Web Link])
+- weekday : day of the week
+- workingday : if day is neither weekend nor holiday is 1, otherwise is 0.
++ weathersit : 
+- 1: Clear, Few clouds, Partly cloudy, Partly cloudy
+- 2: Mist + Cloudy, Mist + Broken clouds, Mist + Few clouds, Mist
+- 3: Light Snow, Light Rain + Thunderstorm + Scattered clouds, Light Rain + Scattered clouds
+- 4: Heavy Rain + Ice Pallets + Thunderstorm + Mist, Snow + Fog
+- temp : Normalized temperature in Celsius. The values are derived via (t-t_min)/(t_max-t_min), t_min=-8, t_max=+39 (only in hourly scale)
+- atemp: Normalized feeling temperature in Celsius. The values are derived via (t-t_min)/(t_max-t_min), t_min=-16, t_max=+50 (only in hourly scale)
+- hum: Normalized humidity. The values are divided to 100 (max)
+- windspeed: Normalized wind speed. The values are divided to 67 (max)
+- casual: count of casual users
+- registered: count of registered users
+- cnt: count of total rental bikes including both casual and registered
+
+```{r initial}
+#load tidyverse for easy manipulations, visualisations etc
+library(tidyverse)
+library(GGally)
+
+#read in the dataset
+dataset <- read_csv("~/homework env/day.csv")
+
+#take a look at the data
+head(dataset)
+
+#get a summary of the data
+summary(dataset)
+str(dataset)
+```
+
+So "dataset" is a data frame with 731 rows and 16 columns. Each row represent a single entry, one day, in which data is recorded about climate conditions, such as temperature and humidity, and the number of bike rentals which occur. This information is stored in the columns.
+
+I'm building a multiple linear regression, so I'll need to select which of the (continuous) explanatory variables to include in my model. I'll check the correlation coefficient between these variables and "cnt", to get an idea of their relationships.
+
+```{r var select}
+#set y as "cnt" column
+y<- select(dataset, cnt)
+#select subset of continuous-value variables
+x<- select(dataset, temp, atemp, hum, windspeed)
+
+#get correlation coefficents
+cor(x,y)
+#plot correlations
+ggcorr(c(x,y))
+```
+
+Seemingly, "temp" and "atemp" are fairly strongly, positively, corellated with "cnt", while "hum" and "windspeed" are weakly, negatively correlated.
+I have four possible variables to choose from, and I wish to construct a multilinear model, so I'll discard "hum" as the weakest correlate. I could use a selection procedure (forward, backward, mixed) to select these within a logical framework.
+
+```{r newdata}
+newdata <- select(dataset, cnt, temp, atemp, windspeed)
+summary(newdata)
+```
+
+Let's see these plotted against each other.
+
+```{r matrix plot}
+#create scatterplot matrix of explanatory variables
+ggpairs(newdata, title = "Scatterplot Matrix") 
+```
+
+Thus, the relationships are visualised. Note the (easily explainable) link between "temp" and "atemp".
+
+And now I'll visualise my data to get the gist of how each variable is distributed. I'll use a histogram with a red line indicating the median, and a blue line for the mean.
+
+```{r cnt plot}
+#plot cnt as a histogram, with mean and median lines
+ggplot(gather(newdata), aes(value)) + 
+  geom_histogram(bins = 10) + 
+  facet_wrap(~key, scales = 'free_x') +
+  labs(y="frequency", title = "Histograms of count frequency, by variable") 
+```
+
+
+
+I wish to solve the equation
+
+Y= B0 + B1 * X1 + B2 * X2 + B3 * X3
+
+Where Y = Count, X1 = Air Temperature, X2 = Temperature, X3 = Windspeed, B0 is my intercept, and Bi denotes the slope coefficient for each Xi. The "lm" function will optimise the values for my {Bi} by minimising the sum of the squares of the distances between my data points and the regression line (The "Least Squares" approach).
+```{r centre}
+# Centre predictors
+atemp.c = scale(newdata$atemp, center=TRUE, scale=FALSE)
+temp.c = scale(newdata$temp, center=TRUE, scale=FALSE)
+windspeed.c = scale(newdata$windspeed, center=TRUE, scale=FALSE)
+
+# bind these new variables into newdata and display a summary
+new.c.vars = cbind(atemp.c, temp.c, windspeed.c)
+newdata = cbind(newdata, new.c.vars)
+names(newdata)[5:7] = c("atemp.c", "temp.c", "windspeed.c" )
+summary(newdata)
+```
+
+```{r fit}
+#fit the model
+mod = lm(cnt ~ atemp.c + temp.c + windspeed.c, data = newdata)
+
+#summarise results
+summary(mod)
+```
+
+And plot this model as a scatterplot in 3 dimensions.
+
+```{r model visualise}
+library(plotly)
+#plot scatter
+plot_ly(newdata, x = ~atemp.c, y = ~temp.c, z = ~cnt,
+        marker = list(color = ~windspeed.c, colorscale = c('#FFE1A1', '#683531'), showscale = TRUE)) %>%
+  add_markers() %>%
+  layout(scene = list(xaxis = list(title = 'Air Temp', range = range(newdata$atemp.c)),
+                     yaxis = list(title = 'Temp', range = range(newdata$temp.c)),
+                     zaxis = list(title = 'Count', range = range(newdata$cnt))),
+         annotations = list(
+           text = 'Windspeed',
+           showarrow = FALSE
+         ))
+
+```
+
+I can make a few observations from my results:
+-The expected count is 1802, factoring in expectations of the other variables
+-The R^2 value, 0.4142, is better than the simple linear model's R^2 of 0.3937. It is, however, rather small and so the model still does little to explain the data variance.
+-The atemp and temp p-values are not significant at the 0.05 level, though this is likely since they are normalised and so a far smaller significance level would be needed to assess the model fit.
+
+I'll examine the residuals for more information.
+```{r residuals}
+
+ggplot(mod, aes(x=.fitted, y=.resid)) + 
+  geom_point() +
+  geom_smooth() +
+  labs(x="Fitted values", y="Residuals", title = "Residual Plot")
+
+```
+
+As before, there is a trend in the residuals, and many fall far from the trend line, which may suggest poor model performance. The multilinear model is hardly an improvement over the simple linear case, and I must consider further improvements.
+
+In summary, I have fitted a multiple linear regression to data (instances of bike shares) to examine a potential link between observed values of variables (air temperature, temperature, windspeed, and quantities rented), building on my previous attempt which made use of only one explanatory variable. Using residual analysis, I have evaulated the performance of this model, and concluded the model is still far from the optimal choice.

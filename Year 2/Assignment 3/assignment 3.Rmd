@@ -1,0 +1,65 @@
+---
+title: "Assignment 3"
+output: html_notebook
+---
+Michelson and Morley performed a classic experiment which tested the hypothesis that the earth
+travels through a luminiferous aether. As part of this experiment, they made many measurements
+of the speed of light.
+
+
+```{r}
+#load the data
+library(datasets)
+data(morley)
+lightspeed <- morley$Speed
+```
+
+We test the hypothesis that the observations in lightspeed come from independent identical normal
+distributions, using Pearson’s goodness of fit test and discrete quantisations.
+
+```{r}
+#quantise
+n <- length(lightspeed)
+breaks <- c(-Inf, seq(from = 745, to = 945, by = 50), Inf)
+Obs <- table(cut(lightspeed, breaks))
+Obs
+
+```
+We test whether these results are consistent with a Multinomial(100, p(mu, sigma^2) ),
+
+So H0: q is in { p(mu,sigma^2) } 
+against H1: q is not in { p(mu,sigma^2) }
+
+The ML estimate for (mu, sigma^2) is (sample mean, sample variance)
+
+```{r}
+#obtain maximum likelihood estimate for mean and variance
+Meanml <- mean(lightspeed)
+Varml <- var(lightspeed)
+
+cat("Sample mean = ",  Meanml); 
+cat("Sample var = ",  Varml); 
+#create the vector q for testing
+q = rep(0, 6)
+q[1] = pnorm(745 ,Meanml, sqrt(Varml))
+q[2] = pnorm(795 ,Meanml, sqrt(Varml)) - pnorm(745 ,Meanml, sqrt(Varml))
+q[3] = pnorm(845 ,Meanml, sqrt(Varml)) - pnorm(795 ,Meanml, sqrt(Varml))
+q[4] = pnorm(895 ,Meanml, sqrt(Varml)) - pnorm(845 ,Meanml, sqrt(Varml))
+q[5] = pnorm(945 ,Meanml, sqrt(Varml)) - pnorm(895 ,Meanml, sqrt(Varml))
+q[6] = pnorm(945 ,Meanml, sqrt(Varml), FALSE)
+q
+```
+We can use the ML estimates in the GLR test statistic.
+M = 6, and ntheta = 2, since a Normal distribution has 2 unknown variables, so use chisq(3) for the lower bound and chisq(5) for the upper bound.
+```{r}
+#create test statistic
+c <-  -2*log( prod(q^Obsv) / prod( (Obsv/100)^Obsv ))
+c
+
+pchisq(c, 3, lower.tail=FALSE)
+pchisq(c, 5, lower.tail=FALSE)
+```
+Both are greater than 0.05, so the test fails at the 0.05 significance level, and hence we have insufficient grounds to reject H0.
+
+
+

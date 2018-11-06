@@ -1,0 +1,123 @@
+---
+title: "LM Sheet 3 - part 2"
+output: html_notebook
+---
+
+2. A hospital surgical unit was interested in predicting survival time in patients undergoing a
+particular type of liver operation. From a random sample of 54 patients, information on the
+patient's survival time, blood clotting score, prognostic index, enzyme function test score and
+liver function test score were extracted. The data surgical.txt is available for download in
+Blackboard.
+
+```{r}
+Surgical <- read.table(file="C:/Users/Dom/Documents/GitHub/Stats Work/Year 3/Linear Models/Surgical.txt", header=TRUE) #read in data in .txt format
+head(Surgical) #view first six entries of Surgical
+```
+
+
+(a) Fit a multiple regression model using the survival time as the response variable and the
+other four variables as explanatory variables.
+
+```{r}
+model <- lm(survival ~ blood.clotting + prognostic + enzyme + liver.function, data=Surgical) #fit full model
+model
+```
+
+
+(b) Conduct an F-test for the overall fit of the regression model in (a). Comment on the
+results.
+
+```{r}
+anova(model) #run F-test for full model
+```
+
+
+(c) Test each of the individual regression coefficients. Do the results indicate that any of
+the explanatory variables can be removed from the model?
+
+
+```{r}
+summary(model)
+```
+
+  At the .05 significance level, the ANOVA table and the summary table for the full fitted model indicate that the intercept and the first three coefficients add significantly to the model's explanatory ability, while liver function does not. 
+
+(d) Perform the forward, backward and backward-forward variable selection using the function
+subset from the R package MASS. Compare the 'best' model selected from each
+stepwise method, e.g., are all the methods return the same model? If not, why is it so?
+
+```{r}
+library(MASS) #load MASS package
+null <- lm(survival ~ 1, data=Surgical) #specify null model
+full <- lm(survival ~ ., data=Surgical) #specify full model
+step(null, scope = list(lower=null, upper=full), direction = "forward") #forward selection
+```
+```{r}
+step(full, data = Surgical, direction = "backward") #backward selection
+```
+```{r}
+step(full, scope = list(lower=null), data=Surgical, direction = "both") #mixed selection
+```
+
+So each method respectively gave, as the chosen optimal model:
+  lm(formula = survival ~ liver.function + prognostic + enzyme + 
+    blood.clotting, data = Surgical)
+  lm(formula = survival ~ blood.clotting + prognostic + enzyme, 
+    data = Surgical)
+  lm(formula = survival ~ blood.clotting + prognostic + enzyme, 
+    data = Surgical)
+    
+These results occured due to the poor contribution liver.function makes to explanation.
+
+(e) Using the function regsubsets from the package leaps to perform the subset selection
+on the dataset and compare the results to the models obtained in (d). Comment on the
+validity of the fitted model by plotting the residuals.
+
+```{r}
+library(leaps)
+subset.fit <- regsubsets(survival ~., data=Surgical, nbest=10) #perform exhaustive model search
+plot(subset.fit, scale = "adjr2") #plot results against adjusted R^2 measure
+plot(subset.fit, scale = "Cp") #plot against Mallow's Cp
+```
+
+The adjusted R^2 measure suggests using the full model, while Mallow's Cp suggests omitting liver function. Both of these models were suggested by the methods employed in the previous question, implying validity in the results.
+
+(f) Use the function boxcox from the R package MASS and suggest a good transform for the
+response variable.
+
+```{r}
+bc <- boxcox(full)
+bc$x[which.max(bc$y)]
+```
+
+Using lambda=0 is significant at the 0.05 level, so a log transform may be appropriate.
+
+////////////////////////////////////////////
+
+3. Produce the Lasso solution path on the Hitters data frame analysed in Section 7.3.1 of the
+lecture notes using the function lars from the package of the same name, and compare it with
+the Lasso solution path from glmnet. Also perform the 10-folds CV to select ?? that returns
+the minimum CV error and compare the thus-selected ??blasso(??) to ??blasso(??
+lasso
+min ) reported in
+Table 7.1. If they differ, explain why.
+
+```{r}
+library(ISLR)
+head(Hitters)
+new.hitters <- Hitters[!is.na(Hitters$Salary),] #omit missing data
+y <- new.hitters[,19]
+X0 <- new.hitters[, -19]
+X0$League <- as.numeric(X0$League)-1 #covert entries to binary
+X0$Division <- as.numeric(X0$Division)-1
+X0$NewLeague <- as.numeric(X0$NewLeague)-1
+X <- scale(X0) #centre and scale
+```
+
+```{r}
+library(lars)
+lars.model <-lars(X, y, type = "lasso") #use lars function to produce lasso path
+plot.lars(lars.model) #plot paths
+cv.lars(X, y, K=10) #compute 10-fold cross validation
+```
+

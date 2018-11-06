@@ -1,0 +1,113 @@
+---
+title: "Simple Linear Regression"
+output: github_document
+---
+https://en.wikipedia.org/wiki/Linear_regression
+Linear regression is a linear approach to modelling the relationship between a scalar response (or dependent variable) and one or more explanatory variables (or independent variables).
+
+I'll produce a simple linear model using data from a bike sharing system.
+
+http://archive.ics.uci.edu/ml/datasets/Bike+Sharing+Dataset
+  "Bike sharing systems are new generation of traditional bike rentals where whole process from membership, rental and return back has become automatic. Through these systems, user is able to easily rent a bike from a particular position and return back at another position. Currently, there are about over 500 bike-sharing programs around the world which is composed of over 500 thousands bicycles. Today, there exists great interest in these systems due to their important role in traffic, environmental and health issues."
+
+```{r initial}
+#load tidyverse for easy manipulations, visualisations etc
+library(tidyverse)
+
+#read in the dataset
+dataset <- read_csv("day.csv")
+
+#take a look at the data
+head(dataset)
+
+#get a summary of the data
+summary(dataset)
+str(dataset)
+```
+
+So "dataset" is a data frame with 731 rows and 16 columns. Each row represent a single entry, one day, in which data is recorded about climate conditions, such as temperature and humidity, and the number of bike rentals which occur. This information is stored in the columns.
+
+I'm building a simple linear regression, so I'll need inly two of these columns. I'll keep "cnt" as the response variable and "temp" as the predictor. "temp" is normalised to take values in [0,1], and is in celsius.
+
+```{r newdata}
+newdata <- select(dataset, cnt, temp)
+summary(newdata)
+```
+
+And now I'll visualise my data to get the gist of how each variable is distributed. I'll use a histogram with a red line indicating the median, and a blue line for the mean.
+
+```{r cnt plot}
+#plot cnt as a histogram, with mean and median lines
+ggplot(newdata, aes(x=cnt)) + 
+  geom_histogram() + 
+  labs(y="frequency", title = "Histogram of count frequency") +
+  geom_vline(xintercept = mean(dataset$cnt), color = "blue") + 
+  geom_vline(xintercept = median(dataset$cnt), color = "red")
+
+```
+
+```{r temp plot}
+#plot temp as a histogram, with mean and median lines
+ggplot(newdata, aes(x=temp)) + 
+  geom_histogram() + 
+  labs(y="frequency", title = "Histogram of temp frequency") +
+  geom_vline(xintercept = mean(dataset$temp), color = "blue") + 
+  geom_vline(xintercept = median(dataset$temp), color = "red")
+```
+
+And finally, a scatterplot to see the relationship.
+
+```{r scatter}
+#plot cnt and temp as a scatter graph
+ggplot(newdata, aes(x=temp, y=cnt)) + 
+  geom_point() + 
+  labs(x="Temperature, normalised", y="Count of rentals", title = "Relationship between Count and Temperature")
+```
+
+
+Each point represent a single day. Note how the count increases with the temperature; the trend does not seem to be linear, as the relationship visibly flattens after x=0.5. I'll fit a simple linear regression and evaluate the model's performance, nonetheless.
+
+I wish to solve the equation
+Count = intercept + slope * Temperature,
+or
+Y= c + m * X
+
+The lm function will fit a linear model to the data by minimising the sum of the squares of the distances between my data points and the regression line (The "Least Squares" approach).
+
+```{r fit}
+#fit the model
+mod = lm(cnt ~ temp, data = newdata)
+
+#summarise results
+summary(mod)
+```
+
+And plot this linear model as a scatterplot.
+
+```{r model visualise}
+#plot scatter
+ggplot(newdata, aes(x=temp, y=cnt)) + 
+  geom_point() + 
+  stat_smooth(method = "lm", col = "red") +
+  labs(x="Temperature, normalised", y="Count of rentals", title = "Relationship between Count and Temperature")
+
+```
+
+I can make a few observations from my results:
+-This relationship is potentially non-linear, and this may be worth further inspection.
+-The R^2 value, 0.3937, is rather small, and so the model does little to explain the data variance.
+-The residual standard error, the quantity of rentals I can expect an estimate from a given temperature to vary by, is large.
+
+I'll examine the residuals for more information.
+```{r residuals}
+
+ggplot(mod, aes(x=.fitted, y=.resid)) + 
+  geom_point() +
+  geom_smooth() +
+  labs(x="Fitted values", y="Residuals", title = "Residual Plot")
+
+```
+
+Clearly, there is a trend in the residuals, and many fall far from the trend line, which may suggest poor model performance. Perhaps alternative models should be considered?
+
+In summary, I have fitted a linear regression to data (instances of bike shares) to examine a potential link between observed values of variables (daily temperature and quantities rented). Using residual analysis, I have evaulated the performance of this model, and concluded the model is far from the optimal choice.

@@ -1,0 +1,160 @@
+---
+title: "Classification of Iris Flowers"
+output:
+  html_document:
+    df_print: paged
+---
+///
+Credit to machinelearningmastery.com/machine-learning-in-r-step-by-step/
+///
+
+As an introduction to machine learning, I will construct a multi-variable regression model with the intent of classifying a dataset of iris flowers. This dataset contains 150 observations of flowers, and 5 characteristics associated with each - 4 numeric measurements, and the species.
+
+```{r initialise}
+#load the caret package (http://topepo.github.io/caret/index.html)
+library(lattice)
+library(ggplot2)
+library(caret)
+
+# attach the iris dataset to the environment
+data(iris)
+# rename the dataset
+dataset <- iris
+
+```
+
+I will need a dataset for validation of the model, and so I will partition the entire dataset into two parts, 80% for training and 20% for validation.
+
+```{r validation set}
+# create a list of 80% of the rows in the original dataset we can use for training
+validation_index <- createDataPartition(dataset$Species, p=0.80, list=FALSE)
+# select 20% of the data for validation
+validation <- dataset[-validation_index,]
+# use the remaining 80% of data to training and testing the models
+dataset <- dataset[validation_index,]
+```
+Let's explore the data we have.
+
+```{r explore}
+# dimensions of dataset
+dim(dataset)
+
+# list types for each attribute
+sapply(dataset, class)
+
+# take a peek at the first 5 rows of the data
+head(dataset)
+
+# list the levels for the class - i.e, the iris species
+levels(dataset$Species)
+
+# summarize the class distribution
+percentage <- prop.table(table(dataset$Species)) * 100
+cbind(freq=table(dataset$Species), percentage=percentage)
+
+# summarize attribute distributions
+summary(dataset)
+```
+
+Now, let's visualise the data and get a better look at it.
+
+I'll start with univariate plots, to better understand the properties of each variable.
+
+```{r visualise 1}
+# split input and output - the measurements define x, and the classes, y
+x <- dataset[,1:4]
+y <- dataset[,5]
+
+# boxplot for each attribute on one image
+par(mfrow=c(1,4))
+  for(i in 1:4) {
+  boxplot(x[,i], main=names(iris)[i])
+}
+
+# barplot for class breakdown
+plot(y)
+```
+This tells me about the measurement distributions, and that the observations are equal in number.
+
+///
+
+Multivariate plots can tell me about the relationships between the different variables.
+
+```{r visualise 2}
+# scatterplot matrix - this creates a chart of each variable plotted against every other, allowing trend recognition
+featurePlot(x=x, y=y, plot="ellipse")
+
+# box and whisker plots for each attribute - as in the above boxplots, this allows distribution comparison, but also can identify clear differences between classes
+featurePlot(x=x, y=y, plot="box")
+
+# density plots for each attribute by class value - from this, I can see the distribution of each attribute in a mooth manner
+scales <- list(x=list(relation="free"), y=list(relation="free"))
+featurePlot(x=x, y=y, plot="density", scales=scales)
+#These look somewhat Gaussian!
+```
+
+Now that I have a deeper understanding of the data properties, it's time to set up some ML algorithms for predicting the class of each flower from its attributes.
+
+I'll split the dataset into 10: 9 for training, 1 for for testing. I will repeat each process 3 times, for accuracy.
+
+```{r test harness}
+# Run algorithms using 10-fold cross validation
+control <- trainControl(method="cv", number=10)
+metric <- "Accuracy"
+```
+
+I'll use the 5 suggested algorithms for my dataset: LDA, CART, kNN, SVM, RF
+
+
+```{r build models}
+# a) linear algorithms
+set.seed(7)
+fit.lda <- train(Species~., data=dataset, method="lda", metric=metric, trControl=control)
+# b) nonlinear algorithms
+# CART
+set.seed(7)
+fit.cart <- train(Species~., data=dataset, method="rpart", metric=metric, trControl=control)
+# kNN
+set.seed(7)
+fit.knn <- train(Species~., data=dataset, method="knn", metric=metric, trControl=control)
+# c) advanced algorithms
+# SVM
+set.seed(7)
+fit.svm <- train(Species~., data=dataset, method="svmRadial", metric=metric, trControl=control)
+# Random Forest
+set.seed(7)
+fit.rf <- train(Species~., data=dataset, method="rf", metric=metric, trControl=control)
+```
+
+And then compare them in terms of accuracy
+
+```{r compare accuracy}
+#summarise accuracy of models
+results <- resamples(list(lda=fit.lda, cart=fit.cart, knn=fit.knn, svm=fit.svm, rf=fit.rf))
+summary(results)
+
+# compare accuracy of models
+dotplot(results)
+```
+Hence, the LDA is the most accurate. I'll zoom in on just this model.
+
+```{r summarise LDA}
+# summarise Best Model
+print(fit.lda)
+```
+
+Using the LDA model, I want to get an idea of the accuracy of the model on the validation set, to quantify how well my choices have performed.
+
+```{r predict}
+# estimate skill of LDA on the validation dataset
+predictions <- predict(fit.lda, validation)
+confusionMatrix(predictions, validation$Species)
+```
+
+This is 100% accurate! This meets the expected criterion of 97 +- 4% for a model, suggesting this is a suitable choice for our dataset. Using this model, I can classify the species of any iris, based on the 4 measurements needed, with perfect accuracy.
+
+///
+
+To conclude, I have followed a tutorial guiding me through the principles of a machine learning project. I have explored and visualised a dataset, created 5 ML models, evaluated their accuracy, and verified that my chosen model is suitable. I now have the skills and the framework to perform further analyses on other data, using other models.
+
+

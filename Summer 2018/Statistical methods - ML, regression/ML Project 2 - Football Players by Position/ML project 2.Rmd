@@ -1,0 +1,212 @@
+---
+title: "Classification of Football Players by Position"
+output: github_document
+---
+///
+Credit again to machinelearningmastery.com/machine-learning-in-r-step-by-step/
+///
+
+Building on my previous project, I will construct a multi-variable regression model with the intent of classifying a dataset of football players by their playing positions, using data about their characteristics (obtained from the Fifa video game database - let's assume it is accurate for the purposes of this project).
+
+```{r initialise}
+#load the caret package (http://topepo.github.io/caret/index.html)
+library(lattice)
+library(tidyverse)
+library(caret)
+
+# load in the dataset
+dataset <- read_csv("~/stats/hw3/complete.csv")
+
+# take a look, find the dimensions
+head(dataset)
+dim(dataset)
+```
+
+Gosh, what an unwieldy dataset! Nearly 18000 entries, and 185 attributes.
+First, I'll need to interpret the boolean table of preferred positions into the format I want, a categorical variable from (STR, MID, DEF, GK) representing where on the pitch the player plays. I'll add columns with the above names, containing a boolean variable denoting whether the player can play there.
+
+```{r add columns}
+#add a position column, wrangled from the boolean table of preferences
+dataset <- dataset%>%
+          mutate(STR = (prefers_rs == TRUE | prefers_ls == TRUE | prefers_st == TRUE | prefers_rf == TRUE | prefers_lf == TRUE | prefers_cf == TRUE), #find strikers
+                 MID = (prefers_rw == TRUE | prefers_lw == TRUE | prefers_ram == TRUE | prefers_rcm == TRUE | prefers_rdm == TRUE | prefers_cam == TRUE | prefers_cm == TRUE | prefers_lm == TRUE | prefers_lam == TRUE | prefers_lcm == TRUE | prefers_ldm == TRUE), #find midfielders
+                 DEF = (prefers_rwb == TRUE | prefers_lwb == TRUE | prefers_cb == TRUE | prefers_rcb == TRUE | prefers_lcb == TRUE | prefers_lb == TRUE | prefers_rb == TRUE),#find defenders
+              GK = prefers_gk == TRUE) #find goalkeepers
+head(dataset)
+```
+I'll condense these into a factor, stored in the column "position". This is the information I will use to classify the players later on.
+For instance, "1100" denotes a player is suited to being a striker or midfielder, but not a defender or goalkeeper, while "0001" is a goalkeeper.
+
+
+```{r add position}
+#convert above columns into binary variables
+dataset$STR <- as.integer(dataset$STR)
+dataset$MID <- as.integer(dataset$MID)
+dataset$DEF <- as.integer(dataset$DEF)
+dataset$GK <- as.integer(dataset$GK)
+
+#add position column
+dataset <- dataset %>% 
+  unite(col = position, STR, MID, DEF, GK, sep = "")%>%
+  mutate(position = as.factor(position))
+
+head(dataset)
+```
+
+Also, I'll group the data by position and visualise the counts of each category, to get a better idea of how the data looks.
+
+```{r visualise}
+#group by position class, count frequency
+pos_count <- dataset %>%
+  group_by(position)%>%
+  summarise(n = n())
+
+#plot as a bar chart, ordered by frequency
+ggplot(pos_count, aes(x=reorder(position, -n), y=n)) +
+  geom_bar(stat = "identity")
+```
+
+
+I'll select only the columns I want for the purposes of my project.
+
+```{r select columns}
+dataset <- select(dataset, age, height_cm, weight_kg, eur_wage, position)
+head(dataset, 20)
+```
+
+
+I will need a dataset for validation of the model, and so I will partition the entire dataset into two parts, 80% for training and 20% for validation.
+
+```{r validation set}
+# create a list of 80% of the rows in the original dataset we can use for training
+validation_index <- createDataPartition(dataset$position, p=0.80, list=FALSE)
+# select 20% of the data for validation
+validation <- dataset[-validation_index,]
+# use the remaining 80% of data to training and testing the models
+dataset <- dataset[validation_index,]
+```
+After that ordeal, Let's go back to basics and explore the data I have.
+
+```{r explore}
+# dimensions of dataset
+dim(dataset)
+
+# list types for each attribute
+sapply(dataset, class)
+
+# take a peek at the first 5 rows of the data
+head(dataset)
+
+# list the levels for the class - i.e, position
+levels(dataset$position)
+
+# summarize the class distribution
+percentage <- prop.table(table(dataset$position)) * 100
+cbind(freq=table(dataset$position), percentage=percentage)
+
+# summarize attribute distributions
+summary(dataset)
+```
+
+Now, let's visualise the data and get a better look at it.
+
+I'll start with univariate plots, to better understand the properties of each variable.
+
+```{r visualise 1}
+# split input and output - the measurements define x, and the position, y
+x <- dataset[,1:4]
+y <- dataset[,5]
+
+# boxplot for each attribute on one image
+par(mfrow=c(1,4))
+  for(i in 1:4) {
+  boxplot(x[,i], main=names(dataset)[i])
+}
+
+```
+This tells me about the measurement distributions, and that the observations are equal in number.
+
+///
+
+Multivariate plots can tell me about the relationships between the different variables.
+
+```{r visualise 2}
+# scatterplot matrix - this creates a chart of each variable plotted against every other, allowing trend recognition
+featurePlot(x=dataset[,1:4], y=dataset[,5], plot="pairs")
+
+# box and whisker plots for each attribute - as in the above boxplots, this allows distribution comparison, but also can identify clear differences between classes
+#featurePlot(x=dataset[,1:4], y=dataset[,5], plot = "box")
+
+# density plots for each attribute by class value - from this, I can see the distribution of each attribute in a smooth manner
+#scales <- list(x=list(relation="free"), y=list(relation="free"))
+#featurePlot(x=dataset[,1:4], y=dataset[,5], plot="density", scales=scales)
+
+```
+
+Now that I have a deeper understanding of the data properties, it's time to set up some ML algorithms for predicting the position of each player from his attributes.
+
+I'll split the dataset into 10: 9 for training, 1 for for testing. I will repeat each process 3 times, for accuracy.
+
+```{r test harness}
+# Run algorithms using 10-fold cross validation
+control <- trainControl(method="cv", number=10)
+metric <- "Accuracy"
+```
+
+I'll use the 5 suggested algorithms for my dataset: LDA, CART, kNN, SVM, RF
+
+
+```{r build models}
+# a) linear algorithms
+set.seed(7)
+fit.lda <- train(position~., data=dataset, method="lda", metric=metric, trControl=control)
+# b) nonlinear algorithms
+# CART
+set.seed(7)
+fit.cart <- train(position~., data=dataset, method="rpart", metric=metric, trControl=control)
+# kNN
+set.seed(7)
+fit.knn <- train(position~., data=dataset, method="knn", metric=metric, trControl=control)
+# c) advanced algorithms
+# SVM
+set.seed(7)
+#fit.svm <- train(position~., data=dataset, method="svmRadial", metric=metric, trControl=control)
+# Random Forest
+set.seed(7)
+#fit.rf <- train(position~., data=dataset, method="rf", metric=metric, trControl=control)
+```
+
+And then compare them in terms of accuracy
+
+```{r compare accuracy}
+#summarise accuracy of models
+results <- resamples(list(lda=fit.lda, cart=fit.cart, knn=fit.knn #svm=fit.svm, rf=fit.rf
+                          ))
+summary(results)
+
+# compare accuracy of models
+dotplot(results)
+```
+Hence, the LDA is the most accurate. I'll zoom in on just this model.
+
+```{r summarise LDA}
+# summarise Best Model
+print(fit.lda)
+```
+
+Using the LDA model, I want to get an idea of the accuracy of the model on the validation set, to quantify how well my choices have performed.
+
+```{r predict}
+# estimate skill of LDA on the validation dataset
+predictions <- predict(fit.lda, validation)
+confusionMatrix(predictions, validation$position)
+```
+
+This is only 42% accurate, meaning the majority of my test data has been misclassified. This does not meet the expected criterion of 97 +- 4% for a model, suggesting this is a not suitable choice for my dataset. I will need to look further into methods for classifying with larger numbers of possible classes, and perhaps consider condensing my position classes into fewer options (perhaps into 4, simply by str/mid/def/gk) to allow greater accuracy.
+
+
+///
+
+To conclude, I have adapted my previous ML classification project to a new dataset. I have wrangled the data into a usable format, explored and visualised the dataset, created 3 ML models, evaluated their accuracy, and evaluated the overall findings from my chosen model. I now greater insight into test design and the issues that can arise during classification problems.
+
+

@@ -1,0 +1,65 @@
+---
+title: "Model selection with the Housing dataset"
+output: html_notebook
+---
+
+The dataset Housing from the R package Ecdat contains sales prices of houses in
+the city of Windsor, Canada in 1987, with n = 546. Eleven variables were observed
+about various aspects about the houses, including the size of a property, the number of
+bedrooms/bathrooms and so forth; details of the explanatory variables can be found
+in help(Housing).
+
+
+```{r}
+#install.packages("Ecdat")
+library(Ecdat) #access Ecdat
+data(Housing) #access Housing
+head(Housing) #view first 6 entries of Housing
+```
+
+
+When the number of candidate variables q is small, it may be possible to fit all 2^q, q=11, submodels and select the one that meets your chosen criterion. The function regsubsets
+in the package leaps implements regression subset selection and allows one to view
+the ranked models according to different scoring criteria by plotting the results of
+regsubsets.
+
+```{r}
+#install.packages("leaps")
+library(leaps) 
+subset.fit <- regsubsets(price ~ ., data = Housing, nbest = 10) #fit all possible models for price
+#nbest specifies the number of models to be shown for each number of parameters -e.g the amount of models to consider for p=3
+par(mfrow = c(1, 2)) #set graphic scale
+plot(subset.fit, scale = 'adjr2') #plot results against adjusted R^2
+plot(subset.fit, scale = 'Cp') #plot results against Mallow's Cp
+
+```
+
+According to both criteria, the model containing lotsize, bathrms, stories, fullbase, gashw, airco, garagepl and prefarea are
+selected.
+
+The exhaustive search performed by regsubsets becomes quickly impossible with
+increasing q. The step function in the package MASS automates the process of backward,
+forward, or backward-forward selection based on AIC. To perform forward
+selection, we need to specify a starting model and the range of models which we want
+to examine in the search. The following code tells R to start with the null model and
+search through models lying in the range between the null and full models using the
+forward selection algorithm.
+
+```{r}
+library(MASS)
+null <- lm(price ~ 1, data = Housing) #specify null model
+full <- lm(price ~ ., data = Housing) #specify full model
+step(null, scope = list(lower = null, upper = full), direction = "forward") #conduct forward selection
+
+```
+
+According to this procedure, the best model is the one that includes all eleven variables.
+We can perform backward elimination or stepwise regression on the same data
+set using the commands:
+
+```{r}
+step(full, data=Housing, direction = "backward") #conduct backward selection
+step(full, scope=list(lower = null), data=Housing, direction = "both") #conduct forward-backward selection
+```
+
+These give equivalent results to forward selection.

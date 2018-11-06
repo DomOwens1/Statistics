@@ -1,0 +1,58 @@
+---
+title: "TSA problem sheet 3"
+output:
+  pdf_document: default
+  html_notebook: default
+---
+
+The share price of Grot Incorporated over 192 trading days is stored in the data vector grot.
+The company finance director has recently heard of ARIMA time series models and wants
+you as company statistician to fit one.
+
+```{r}
+load(url("http://www.maths.bris.ac.uk/~magpn/TSA/grot.RData")) #load data
+head(grot) #view first 6 entries
+```
+
+(a) Use the R command ts.plot() to plot the data.
+
+```{r}
+ts.plot(grot)
+```
+
+
+(b) Now follow the ARIMA fitting flowchat in your notes. Difference the data using the R
+function diff() and put it into another vector called dgrot. Plot the differenced data.
+Does it look stationary in mean? If so, then set the order of differencing d = 1, otherwise
+difference again and increase d accordingly.
+
+```{r}
+dgrot <- diff(grot) #difference grot
+ts.plot(dgrot) #plot differenced series
+abline(a=0, b=0) # plot line at y=0
+```
+
+This appears to be stationary in mean, as the series seems to gravitate to the y=0 line.
+
+
+(c) Plot the correlogram of the differenced data using the acf() function. Are any of the
+correlation coefficients much larger than the tolerance limits?
+
+```{r}
+acf(dgrot) #plot autocorrellation of differenced series
+```
+
+We can see that the only significant autocorrelative lag is k=0, as it is the only lag on the acf plot which lies outside the hatched area.
+
+(d) Plot the partial correlogram of the differenced data. Are any of the partial autocorrelation
+coefficients much larger than the tolerance limits?
+
+```{r}
+pacf(dgrot) #plot partial autocorrellation of differenced series
+```
+
+After accounting for intermediate lags by using the pacf, there are still no significant lags k.
+
+(e) Suggest a suitable model for the differenced data and justify your reasons.
+
+I suggest the ARIMA(0,1,0) model. Analysing the differenced d=1 series, the series is stationary and has no significant relationships with previous time steps. 

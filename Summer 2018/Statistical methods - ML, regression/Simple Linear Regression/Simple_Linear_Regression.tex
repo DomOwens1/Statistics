@@ -1,0 +1,496 @@
+\documentclass[]{article}
+\usepackage{lmodern}
+\usepackage{amssymb,amsmath}
+\usepackage{ifxetex,ifluatex}
+\usepackage{fixltx2e} % provides \textsubscript
+\ifnum 0\ifxetex 1\fi\ifluatex 1\fi=0 % if pdftex
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+\else % if luatex or xelatex
+  \ifxetex
+    \usepackage{mathspec}
+  \else
+    \usepackage{fontspec}
+  \fi
+  \defaultfontfeatures{Ligatures=TeX,Scale=MatchLowercase}
+\fi
+% use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+% use microtype if available
+\IfFileExists{microtype.sty}{%
+\usepackage{microtype}
+\UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\usepackage[margin=1in]{geometry}
+\usepackage{hyperref}
+\hypersetup{unicode=true,
+            pdftitle={Simple Linear Regression},
+            pdfborder={0 0 0},
+            breaklinks=true}
+\urlstyle{same}  % don't use monospace font for urls
+\usepackage{color}
+\usepackage{fancyvrb}
+\newcommand{\VerbBar}{|}
+\newcommand{\VERB}{\Verb[commandchars=\\\{\}]}
+\DefineVerbatimEnvironment{Highlighting}{Verbatim}{commandchars=\\\{\}}
+% Add ',fontsize=\small' for more characters per line
+\usepackage{framed}
+\definecolor{shadecolor}{RGB}{248,248,248}
+\newenvironment{Shaded}{\begin{snugshade}}{\end{snugshade}}
+\newcommand{\KeywordTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{\textbf{#1}}}
+\newcommand{\DataTypeTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{#1}}
+\newcommand{\DecValTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
+\newcommand{\BaseNTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
+\newcommand{\FloatTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
+\newcommand{\ConstantTok}[1]{\textcolor[rgb]{0.00,0.00,0.00}{#1}}
+\newcommand{\CharTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\SpecialCharTok}[1]{\textcolor[rgb]{0.00,0.00,0.00}{#1}}
+\newcommand{\StringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\VerbatimStringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\SpecialStringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\ImportTok}[1]{#1}
+\newcommand{\CommentTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textit{#1}}}
+\newcommand{\DocumentationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\AnnotationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\CommentVarTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\OtherTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{#1}}
+\newcommand{\FunctionTok}[1]{\textcolor[rgb]{0.00,0.00,0.00}{#1}}
+\newcommand{\VariableTok}[1]{\textcolor[rgb]{0.00,0.00,0.00}{#1}}
+\newcommand{\ControlFlowTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{\textbf{#1}}}
+\newcommand{\OperatorTok}[1]{\textcolor[rgb]{0.81,0.36,0.00}{\textbf{#1}}}
+\newcommand{\BuiltInTok}[1]{#1}
+\newcommand{\ExtensionTok}[1]{#1}
+\newcommand{\PreprocessorTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textit{#1}}}
+\newcommand{\AttributeTok}[1]{\textcolor[rgb]{0.77,0.63,0.00}{#1}}
+\newcommand{\RegionMarkerTok}[1]{#1}
+\newcommand{\InformationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\WarningTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\AlertTok}[1]{\textcolor[rgb]{0.94,0.16,0.16}{#1}}
+\newcommand{\ErrorTok}[1]{\textcolor[rgb]{0.64,0.00,0.00}{\textbf{#1}}}
+\newcommand{\NormalTok}[1]{#1}
+\usepackage{graphicx,grffile}
+\makeatletter
+\def\maxwidth{\ifdim\Gin@nat@width>\linewidth\linewidth\else\Gin@nat@width\fi}
+\def\maxheight{\ifdim\Gin@nat@height>\textheight\textheight\else\Gin@nat@height\fi}
+\makeatother
+% Scale images if necessary, so that they will not overflow the page
+% margins by default, and it is still possible to overwrite the defaults
+% using explicit options in \includegraphics[width, height, ...]{}
+\setkeys{Gin}{width=\maxwidth,height=\maxheight,keepaspectratio}
+\IfFileExists{parskip.sty}{%
+\usepackage{parskip}
+}{% else
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{6pt plus 2pt minus 1pt}
+}
+\setlength{\emergencystretch}{3em}  % prevent overfull lines
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\setcounter{secnumdepth}{0}
+% Redefines (sub)paragraphs to behave more like sections
+\ifx\paragraph\undefined\else
+\let\oldparagraph\paragraph
+\renewcommand{\paragraph}[1]{\oldparagraph{#1}\mbox{}}
+\fi
+\ifx\subparagraph\undefined\else
+\let\oldsubparagraph\subparagraph
+\renewcommand{\subparagraph}[1]{\oldsubparagraph{#1}\mbox{}}
+\fi
+
+%%% Use protect on footnotes to avoid problems with footnotes in titles
+\let\rmarkdownfootnote\footnote%
+\def\footnote{\protect\rmarkdownfootnote}
+
+%%% Change title format to be more compact
+\usepackage{titling}
+
+% Create subtitle command for use in maketitle
+\newcommand{\subtitle}[1]{
+  \posttitle{
+    \begin{center}\large#1\end{center}
+    }
+}
+
+\setlength{\droptitle}{-2em}
+
+  \title{Simple Linear Regression}
+    \pretitle{\vspace{\droptitle}\centering\huge}
+  \posttitle{\par}
+    \author{}
+    \preauthor{}\postauthor{}
+    \date{}
+    \predate{}\postdate{}
+  
+
+\begin{document}
+\maketitle
+
+\url{https://en.wikipedia.org/wiki/Linear_regression} Linear regression
+is a linear approach to modelling the relationship between a scalar
+response (or dependent variable) and one or more explanatory variables
+(or independent variables).
+
+I'll produce a simple linear model using data from a bike sharing
+system.
+
+\url{http://archive.ics.uci.edu/ml/datasets/Bike+Sharing+Dataset} ``Bike
+sharing systems are new generation of traditional bike rentals where
+whole process from membership, rental and return back has become
+automatic. Through these systems, user is able to easily rent a bike
+from a particular position and return back at another position.
+Currently, there are about over 500 bike-sharing programs around the
+world which is composed of over 500 thousands bicycles. Today, there
+exists great interest in these systems due to their important role in
+traffic, environmental and health issues.''
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{#load tidyverse for easy manipulations, visualisations etc}
+\KeywordTok{library}\NormalTok{(tidyverse)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Warning: package 'tidyverse' was built under R version 3.5.1
+\end{verbatim}
+
+\begin{verbatim}
+## -- Attaching packages ---------------------------------------- tidyverse 1.2.1 --
+\end{verbatim}
+
+\begin{verbatim}
+## v ggplot2 2.2.1     v purrr   0.2.5
+## v tibble  1.4.2     v dplyr   0.7.6
+## v tidyr   0.8.1     v stringr 1.3.1
+## v readr   1.1.1     v forcats 0.3.0
+\end{verbatim}
+
+\begin{verbatim}
+## -- Conflicts ------------------------------------------- tidyverse_conflicts() --
+## x dplyr::filter() masks stats::filter()
+## x dplyr::lag()    masks stats::lag()
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{#read in the dataset}
+\NormalTok{dataset <-}\StringTok{ }\KeywordTok{read_csv}\NormalTok{(}\StringTok{"day.csv"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Parsed with column specification:
+## cols(
+##   instant = col_integer(),
+##   dteday = col_date(format = ""),
+##   season = col_integer(),
+##   yr = col_integer(),
+##   mnth = col_integer(),
+##   holiday = col_integer(),
+##   weekday = col_integer(),
+##   workingday = col_integer(),
+##   weathersit = col_integer(),
+##   temp = col_double(),
+##   atemp = col_double(),
+##   hum = col_double(),
+##   windspeed = col_double(),
+##   casual = col_integer(),
+##   registered = col_integer(),
+##   cnt = col_integer()
+## )
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{#take a look at the data}
+\KeywordTok{head}\NormalTok{(dataset)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## # A tibble: 6 x 16
+##   instant dteday     season    yr  mnth holiday weekday workingday
+##     <int> <date>      <int> <int> <int>   <int>   <int>      <int>
+## 1       1 2011-01-01      1     0     1       0       6          0
+## 2       2 2011-01-02      1     0     1       0       0          0
+## 3       3 2011-01-03      1     0     1       0       1          1
+## 4       4 2011-01-04      1     0     1       0       2          1
+## 5       5 2011-01-05      1     0     1       0       3          1
+## 6       6 2011-01-06      1     0     1       0       4          1
+## # ... with 8 more variables: weathersit <int>, temp <dbl>, atemp <dbl>,
+## #   hum <dbl>, windspeed <dbl>, casual <int>, registered <int>, cnt <int>
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{#get a summary of the data}
+\KeywordTok{summary}\NormalTok{(dataset)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+##     instant          dteday               season            yr        
+##  Min.   :  1.0   Min.   :2011-01-01   Min.   :1.000   Min.   :0.0000  
+##  1st Qu.:183.5   1st Qu.:2011-07-02   1st Qu.:2.000   1st Qu.:0.0000  
+##  Median :366.0   Median :2012-01-01   Median :3.000   Median :1.0000  
+##  Mean   :366.0   Mean   :2012-01-01   Mean   :2.497   Mean   :0.5007  
+##  3rd Qu.:548.5   3rd Qu.:2012-07-01   3rd Qu.:3.000   3rd Qu.:1.0000  
+##  Max.   :731.0   Max.   :2012-12-31   Max.   :4.000   Max.   :1.0000  
+##       mnth          holiday           weekday        workingday   
+##  Min.   : 1.00   Min.   :0.00000   Min.   :0.000   Min.   :0.000  
+##  1st Qu.: 4.00   1st Qu.:0.00000   1st Qu.:1.000   1st Qu.:0.000  
+##  Median : 7.00   Median :0.00000   Median :3.000   Median :1.000  
+##  Mean   : 6.52   Mean   :0.02873   Mean   :2.997   Mean   :0.684  
+##  3rd Qu.:10.00   3rd Qu.:0.00000   3rd Qu.:5.000   3rd Qu.:1.000  
+##  Max.   :12.00   Max.   :1.00000   Max.   :6.000   Max.   :1.000  
+##    weathersit         temp             atemp              hum        
+##  Min.   :1.000   Min.   :0.05913   Min.   :0.07907   Min.   :0.0000  
+##  1st Qu.:1.000   1st Qu.:0.33708   1st Qu.:0.33784   1st Qu.:0.5200  
+##  Median :1.000   Median :0.49833   Median :0.48673   Median :0.6267  
+##  Mean   :1.395   Mean   :0.49538   Mean   :0.47435   Mean   :0.6279  
+##  3rd Qu.:2.000   3rd Qu.:0.65542   3rd Qu.:0.60860   3rd Qu.:0.7302  
+##  Max.   :3.000   Max.   :0.86167   Max.   :0.84090   Max.   :0.9725  
+##    windspeed           casual         registered        cnt      
+##  Min.   :0.02239   Min.   :   2.0   Min.   :  20   Min.   :  22  
+##  1st Qu.:0.13495   1st Qu.: 315.5   1st Qu.:2497   1st Qu.:3152  
+##  Median :0.18097   Median : 713.0   Median :3662   Median :4548  
+##  Mean   :0.19049   Mean   : 848.2   Mean   :3656   Mean   :4504  
+##  3rd Qu.:0.23321   3rd Qu.:1096.0   3rd Qu.:4776   3rd Qu.:5956  
+##  Max.   :0.50746   Max.   :3410.0   Max.   :6946   Max.   :8714
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{str}\NormalTok{(dataset)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Classes 'tbl_df', 'tbl' and 'data.frame':    731 obs. of  16 variables:
+##  $ instant   : int  1 2 3 4 5 6 7 8 9 10 ...
+##  $ dteday    : Date, format: "2011-01-01" "2011-01-02" ...
+##  $ season    : int  1 1 1 1 1 1 1 1 1 1 ...
+##  $ yr        : int  0 0 0 0 0 0 0 0 0 0 ...
+##  $ mnth      : int  1 1 1 1 1 1 1 1 1 1 ...
+##  $ holiday   : int  0 0 0 0 0 0 0 0 0 0 ...
+##  $ weekday   : int  6 0 1 2 3 4 5 6 0 1 ...
+##  $ workingday: int  0 0 1 1 1 1 1 0 0 1 ...
+##  $ weathersit: int  2 2 1 1 1 1 2 2 1 1 ...
+##  $ temp      : num  0.344 0.363 0.196 0.2 0.227 ...
+##  $ atemp     : num  0.364 0.354 0.189 0.212 0.229 ...
+##  $ hum       : num  0.806 0.696 0.437 0.59 0.437 ...
+##  $ windspeed : num  0.16 0.249 0.248 0.16 0.187 ...
+##  $ casual    : int  331 131 120 108 82 88 148 68 54 41 ...
+##  $ registered: int  654 670 1229 1454 1518 1518 1362 891 768 1280 ...
+##  $ cnt       : int  985 801 1349 1562 1600 1606 1510 959 822 1321 ...
+##  - attr(*, "spec")=List of 2
+##   ..$ cols   :List of 16
+##   .. ..$ instant   : list()
+##   .. .. ..- attr(*, "class")= chr  "collector_integer" "collector"
+##   .. ..$ dteday    :List of 1
+##   .. .. ..$ format: chr ""
+##   .. .. ..- attr(*, "class")= chr  "collector_date" "collector"
+##   .. ..$ season    : list()
+##   .. .. ..- attr(*, "class")= chr  "collector_integer" "collector"
+##   .. ..$ yr        : list()
+##   .. .. ..- attr(*, "class")= chr  "collector_integer" "collector"
+##   .. ..$ mnth      : list()
+##   .. .. ..- attr(*, "class")= chr  "collector_integer" "collector"
+##   .. ..$ holiday   : list()
+##   .. .. ..- attr(*, "class")= chr  "collector_integer" "collector"
+##   .. ..$ weekday   : list()
+##   .. .. ..- attr(*, "class")= chr  "collector_integer" "collector"
+##   .. ..$ workingday: list()
+##   .. .. ..- attr(*, "class")= chr  "collector_integer" "collector"
+##   .. ..$ weathersit: list()
+##   .. .. ..- attr(*, "class")= chr  "collector_integer" "collector"
+##   .. ..$ temp      : list()
+##   .. .. ..- attr(*, "class")= chr  "collector_double" "collector"
+##   .. ..$ atemp     : list()
+##   .. .. ..- attr(*, "class")= chr  "collector_double" "collector"
+##   .. ..$ hum       : list()
+##   .. .. ..- attr(*, "class")= chr  "collector_double" "collector"
+##   .. ..$ windspeed : list()
+##   .. .. ..- attr(*, "class")= chr  "collector_double" "collector"
+##   .. ..$ casual    : list()
+##   .. .. ..- attr(*, "class")= chr  "collector_integer" "collector"
+##   .. ..$ registered: list()
+##   .. .. ..- attr(*, "class")= chr  "collector_integer" "collector"
+##   .. ..$ cnt       : list()
+##   .. .. ..- attr(*, "class")= chr  "collector_integer" "collector"
+##   ..$ default: list()
+##   .. ..- attr(*, "class")= chr  "collector_guess" "collector"
+##   ..- attr(*, "class")= chr "col_spec"
+\end{verbatim}
+
+So ``dataset'' is a data frame with 731 rows and 16 columns. Each row
+represent a single entry, one day, in which data is recorded about
+climate conditions, such as temperature and humidity, and the number of
+bike rentals which occur. This information is stored in the columns.
+
+I'm building a simple linear regression, so I'll need inly two of these
+columns. I'll keep ``cnt'' as the response variable and ``temp'' as the
+predictor. ``temp'' is normalised to take values in {[}0,1{]}, and is in
+celsius.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{newdata <-}\StringTok{ }\KeywordTok{select}\NormalTok{(dataset, cnt, temp)}
+\KeywordTok{summary}\NormalTok{(newdata)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+##       cnt            temp        
+##  Min.   :  22   Min.   :0.05913  
+##  1st Qu.:3152   1st Qu.:0.33708  
+##  Median :4548   Median :0.49833  
+##  Mean   :4504   Mean   :0.49538  
+##  3rd Qu.:5956   3rd Qu.:0.65542  
+##  Max.   :8714   Max.   :0.86167
+\end{verbatim}
+
+And now I'll visualise my data to get the gist of how each variable is
+distributed. I'll use a histogram with a red line indicating the median,
+and a blue line for the mean.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{#plot cnt as a histogram, with mean and median lines}
+\KeywordTok{ggplot}\NormalTok{(newdata, }\KeywordTok{aes}\NormalTok{(}\DataTypeTok{x=}\NormalTok{cnt)) }\OperatorTok{+}\StringTok{ }
+\StringTok{  }\KeywordTok{geom_histogram}\NormalTok{() }\OperatorTok{+}\StringTok{ }
+\StringTok{  }\KeywordTok{labs}\NormalTok{(}\DataTypeTok{y=}\StringTok{"frequency"}\NormalTok{, }\DataTypeTok{title =} \StringTok{"Histogram of count frequency"}\NormalTok{) }\OperatorTok{+}
+\StringTok{  }\KeywordTok{geom_vline}\NormalTok{(}\DataTypeTok{xintercept =} \KeywordTok{mean}\NormalTok{(dataset}\OperatorTok{$}\NormalTok{cnt), }\DataTypeTok{color =} \StringTok{"blue"}\NormalTok{) }\OperatorTok{+}\StringTok{ }
+\StringTok{  }\KeywordTok{geom_vline}\NormalTok{(}\DataTypeTok{xintercept =} \KeywordTok{median}\NormalTok{(dataset}\OperatorTok{$}\NormalTok{cnt), }\DataTypeTok{color =} \StringTok{"red"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## `stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+\end{verbatim}
+
+\includegraphics{Simple_Linear_Regression_files/figure-latex/cnt plot-1.pdf}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{#plot temp as a histogram, with mean and median lines}
+\KeywordTok{ggplot}\NormalTok{(newdata, }\KeywordTok{aes}\NormalTok{(}\DataTypeTok{x=}\NormalTok{temp)) }\OperatorTok{+}\StringTok{ }
+\StringTok{  }\KeywordTok{geom_histogram}\NormalTok{() }\OperatorTok{+}\StringTok{ }
+\StringTok{  }\KeywordTok{labs}\NormalTok{(}\DataTypeTok{y=}\StringTok{"frequency"}\NormalTok{, }\DataTypeTok{title =} \StringTok{"Histogram of temp frequency"}\NormalTok{) }\OperatorTok{+}
+\StringTok{  }\KeywordTok{geom_vline}\NormalTok{(}\DataTypeTok{xintercept =} \KeywordTok{mean}\NormalTok{(dataset}\OperatorTok{$}\NormalTok{temp), }\DataTypeTok{color =} \StringTok{"blue"}\NormalTok{) }\OperatorTok{+}\StringTok{ }
+\StringTok{  }\KeywordTok{geom_vline}\NormalTok{(}\DataTypeTok{xintercept =} \KeywordTok{median}\NormalTok{(dataset}\OperatorTok{$}\NormalTok{temp), }\DataTypeTok{color =} \StringTok{"red"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## `stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+\end{verbatim}
+
+\includegraphics{Simple_Linear_Regression_files/figure-latex/temp plot-1.pdf}
+
+And finally, a scatterplot to see the relationship.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{#plot cnt and temp as a scatter graph}
+\KeywordTok{ggplot}\NormalTok{(newdata, }\KeywordTok{aes}\NormalTok{(}\DataTypeTok{x=}\NormalTok{temp, }\DataTypeTok{y=}\NormalTok{cnt)) }\OperatorTok{+}\StringTok{ }
+\StringTok{  }\KeywordTok{geom_point}\NormalTok{() }\OperatorTok{+}\StringTok{ }
+\StringTok{  }\KeywordTok{labs}\NormalTok{(}\DataTypeTok{x=}\StringTok{"Temperature, normalised"}\NormalTok{, }\DataTypeTok{y=}\StringTok{"Count of rentals"}\NormalTok{, }\DataTypeTok{title =} \StringTok{"Relationship between Count and Temperature"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{Simple_Linear_Regression_files/figure-latex/scatter-1.pdf}
+
+Each point represent a single day. Note how the count increases with the
+temperature; the trend does not seem to be linear, as the relationship
+visibly flattens after x=0.5. I'll fit a simple linear regression and
+evaluate the model's performance, nonetheless.
+
+I wish to solve the equation Count = intercept + slope * Temperature, or
+Y= c + m * X
+
+The lm function will fit a linear model to the data by minimising the
+sum of the squares of the distances between my data points and the
+regression line (The ``Least Squares'' approach).
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{#fit the model}
+\NormalTok{mod =}\StringTok{ }\KeywordTok{lm}\NormalTok{(cnt }\OperatorTok{~}\StringTok{ }\NormalTok{temp, }\DataTypeTok{data =}\NormalTok{ newdata)}
+
+\CommentTok{#summarise results}
+\KeywordTok{summary}\NormalTok{(mod)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## 
+## Call:
+## lm(formula = cnt ~ temp, data = newdata)
+## 
+## Residuals:
+##     Min      1Q  Median      3Q     Max 
+## -4615.3 -1134.9  -104.4  1044.3  3737.8 
+## 
+## Coefficients:
+##             Estimate Std. Error t value Pr(>|t|)    
+## (Intercept)   1214.6      161.2   7.537 1.43e-13 ***
+## temp          6640.7      305.2  21.759  < 2e-16 ***
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Residual standard error: 1509 on 729 degrees of freedom
+## Multiple R-squared:  0.3937, Adjusted R-squared:  0.3929 
+## F-statistic: 473.5 on 1 and 729 DF,  p-value: < 2.2e-16
+\end{verbatim}
+
+And plot this linear model as a scatterplot.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{#plot scatter}
+\KeywordTok{ggplot}\NormalTok{(newdata, }\KeywordTok{aes}\NormalTok{(}\DataTypeTok{x=}\NormalTok{temp, }\DataTypeTok{y=}\NormalTok{cnt)) }\OperatorTok{+}\StringTok{ }
+\StringTok{  }\KeywordTok{geom_point}\NormalTok{() }\OperatorTok{+}\StringTok{ }
+\StringTok{  }\KeywordTok{stat_smooth}\NormalTok{(}\DataTypeTok{method =} \StringTok{"lm"}\NormalTok{, }\DataTypeTok{col =} \StringTok{"red"}\NormalTok{) }\OperatorTok{+}
+\StringTok{  }\KeywordTok{labs}\NormalTok{(}\DataTypeTok{x=}\StringTok{"Temperature, normalised"}\NormalTok{, }\DataTypeTok{y=}\StringTok{"Count of rentals"}\NormalTok{, }\DataTypeTok{title =} \StringTok{"Relationship between Count and Temperature"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{Simple_Linear_Regression_files/figure-latex/model visualise-1.pdf}
+
+I can make a few observations from my results: -This relationship is
+potentially non-linear, and this may be worth further inspection. -The
+R\^{}2 value, 0.3937, is rather small, and so the model does little to
+explain the data variance. -The residual standard error, the quantity of
+rentals I can expect an estimate from a given temperature to vary by, is
+large.
+
+I'll examine the residuals for more information.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{ggplot}\NormalTok{(mod, }\KeywordTok{aes}\NormalTok{(}\DataTypeTok{x=}\NormalTok{.fitted, }\DataTypeTok{y=}\NormalTok{.resid)) }\OperatorTok{+}\StringTok{ }
+\StringTok{  }\KeywordTok{geom_point}\NormalTok{() }\OperatorTok{+}
+\StringTok{  }\KeywordTok{geom_smooth}\NormalTok{() }\OperatorTok{+}
+\StringTok{  }\KeywordTok{labs}\NormalTok{(}\DataTypeTok{x=}\StringTok{"Fitted values"}\NormalTok{, }\DataTypeTok{y=}\StringTok{"Residuals"}\NormalTok{, }\DataTypeTok{title =} \StringTok{"Residual Plot"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## `geom_smooth()` using method = 'loess'
+\end{verbatim}
+
+\includegraphics{Simple_Linear_Regression_files/figure-latex/residuals-1.pdf}
+
+Clearly, there is a trend in the residuals, and many fall far from the
+trend line, which may suggest poor model performance. Perhaps
+alternative models should be considered?
+
+In summary, I have fitted a linear regression to data (instances of bike
+shares) to examine a potential link between observed values of variables
+(daily temperature and quantities rented). Using residual analysis, I
+have evaulated the performance of this model, and concluded the model is
+far from the optimal choice.
+
+
+\end{document}
