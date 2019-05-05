@@ -1,0 +1,38 @@
+---
+title: "LM sheet 4"
+output: html_notebook
+---
+
+
+4. Write an R code that implements an iteratively re-weighted least squares algorithm to the
+pneumonia data in Example 1.1. You may use the lm function to fit the working linear model
+at each iteration via weighted least squares estimation, and stop the iterations when ().
+Record how many iterations are required for the algorithm to converge.
+
+```{r}
+data <- read.table("C:/Users/Dom/Documents/GitHub/Statistics/Year 3/Linear Models/mice (1).data", header = TRUE) #read data
+head(data)
+data1 <- cbind(1, data$dose) #create X matrix
+response <- data$numberDeaths / data$numberMice #create response ratio vector
+
+irls =
+function(X, y, maxit, family=binomial) #define function
+{
+  B = rep(0,ncol(X)) #initialise Beta vector
+  for(j in 1:maxit)
+  {
+    eta    = X %*% B #calculate expectation vector
+    g      = family()$linkinv(eta)
+    gprime = family()$mu.eta(eta)
+    z      = eta + (y - g) / gprime
+    W      = as.vector(gprime^2 / family()$variance(g))
+    Bold   = B
+    tol    = 10^-5 * max(Bold)
+    B      = solve(crossprod(X,W*X), crossprod(X,W*z), tol)
+    if(max(B-Bold) < tol) break
+  }
+  list(coefficients=B,iterations=j)
+}
+
+irls(data1, response, 100)
+```

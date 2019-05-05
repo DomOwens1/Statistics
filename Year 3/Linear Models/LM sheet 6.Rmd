@@ -1,0 +1,74 @@
+---
+title: "GLM sheet 6"
+output: html_notebook
+---
+
+In a psychology experiment, researchers asked participants to respond to various stimuli and
+measured their reaction time. Participants were randomly assigned to one of three treatment
+groups. Subjects in group 1 were required to respond as quickly as possible to any stimulus
+that was presented. Subjects in group 2 were required to respond to a particular stimulus
+while disregarding other types of stimuli. Finally, subjects in group 3 were required to respond
+differently depending on the stimuli presented. The researcher felt that age may be a factor
+in determining the reaction time, so she organized the subjects by age and obtained the
+following data:
+
+```{r}
+
+ time <- c(0.384, 0.248, 0.191, 0.203, 0.331, 0.438, 0.494, 0.467, 0.302, 0.338, 0.495, 0.631, 0.485, 0.389, 0.629, 0.585, 0.782, 0.529, 0.586, 0.509, 0.364, 0.626, 0.858, 0.529, 0.52, 0.854, 0.7)
+age <- gl(3,3,27)
+group <- gl(3, 9, 27)
+psychdata <- data.frame(cbind(time,age,group))
+head(psychdata)
+```
+
+(a) Fit a two-way ANOVA model with interactions.
+
+```{r}
+fit <- glm(time ~ age*group, data = psychdata)
+
+```
+
+(b) Is there a significant interaction effect between group?
+```{r}
+summary(fit)
+```
+The p-value for the mixed effect, age:group, is 0.69 and so the coefficient is not significant.
+
+(c) Draw interaction plots using the function interaction.plot and interpret the outcome;
+see help("interaction.plot") for its usage. Does the output support the result of (b)?
+
+```{r}
+interaction.plot(age, group, response = time)
+```
+This suggests the mixed effect does have a small and inconsistent effect on the model fit, given that the mean is an increasing function of age for all groups. This largely supports my conclusion in (b).
+
+(d) Refit the model without the interaction term. Has the significance of the main effects
+changed? If so, why?
+
+```{r}
+fit2 <- glm(time ~ age + group, data = psychdata)
+summary(fit2)
+```
+The two factors are now significant to the model. This is from removing the mixed effect, which has colinearity with both.
+
+(e) What are the null and alternative hypotheses for the two main effects?
+
+H0: Null Model vs. H1: Xi is in model
+
+(f) Is there a significant difference in the mean reaction time between the three stimulus /
+age groups?
+
+```{r}
+aggregate(time, list(age), mean, data=psychdata)
+
+aggregate(time, list(group), mean, data=psychdata)
+```
+There is an evident increasing trend in the factor means.
+
+(g) Make a residual plot. Do the assumptions of ANOVA appear to be valid?
+
+```{r}
+plot(fit2$residuals, psychdata$time)
+```
+
+There appears to be an increasing trend in the residuals, indicating a transformation of the response may be necessary. 

@@ -1,0 +1,40 @@
+---
+title: "GLM sheet 7"
+output: html_notebook
+---
+
+```{r}
+#clinic <- c("A","A","B","B")
+#care <- c("Low","High","Low","High")
+#survived <- c(176,293,197,23)
+#died <- c(3,4,17,2)
+#counts <- survived + died
+#antenatal.data <- data.frame(cbind(clinic,care,survived,died,Counts))
+antenatal.data <- read.table("C:/Users/Dom/Downloads/antenatal.data", header=TRUE)
+attach(antenatal.data)
+fit1 <- glm(counts~clinic+care+survival, family="poisson")
+summary(fit1)
+```
+
+The first task is to investigate whether survival is dependent on the clinic. Write down
+the model expression in which the appropriate interaction is added to the additive model.
+Use anova to test for an association between survival and clinic. Based on the analysis
+of deviance table, decide whether to include the interaction term in the model.
+
+```{r}
+fit2 <- glm(counts~care+survival:clinic, family="poisson", data=antenatal.data)
+summary(fit2)
+anova(fit1,fit2)
+```
+
+The interaction term is shown by the deviance table to be highly significant, so this should be included.
+
+Add a term to the model in (d) to investigate a possible association between level of care
+and clinic. Write down the new model and decide whether to include the extra term in
+the model based on an analysis of deviance.
+
+```{r}
+fit3 <- glm(counts~ survival:clinic + care:clinic, family="poisson", data=antenatal.data)
+summary(fit3)
+```
+

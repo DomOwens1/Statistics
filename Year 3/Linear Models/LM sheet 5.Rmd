@@ -1,0 +1,79 @@
+---
+title: "LM Sheet 5"
+output: html_notebook
+---
+
+2. The table below provides data on the number of grapevines affected by the fungus botrytis
+cinerea, which is denote by yi out of mi grapevines treated with the strength, xi of a
+particular chemical for groups i = 1, . . . , 7.
+
+```{r}
+m<- c(43, 41, 47, 66, 51, 57, 51)
+y<- c(33, 29, 24, 20,16, 8, 11)
+x<- c(1.0, 1.2, 1.5, 1.7, 2.0, 2.2, 2.4)
+bcdata <- as.data.frame( cbind(m,y,x) )
+bcdata
+```
+
+For each chemical strength, calculate the fitted values of the probabilities
+that the grapevines are affected by the fungus and verify that the above maximum
+likelihood estimates satisfy the likelihood equations.
+
+```{r}
+B0 <- 3.111; B1 <- -2.058
+bcdata$fitted <- B0 + B1*bcdata$x
+bcdata$fitted # show fitted values
+bcdata$pi <- exp(bcdata$fitted)/ (1 + exp(bcdata$fitted))
+bcdata$pi # show fitted probability estimates
+```
+
+```{r}
+sum(bcdata$y)
+sum(bcdata$m * bcdata$pi) #verify first equality
+
+sum(bcdata$y * bcdata$x)
+sum(bcdata$m * bcdata$pi * bcdata$x) #verify second
+```
+
+Calculate deviance
+```{r}
+A <-log(bcdata$y/bcdata$pi*bcdata$m)
+C <-log( (1 - bcdata$y/bcdata$m)/(1 - bcdata$pi) )
+sum(bcdata$y * A + (bcdata$m - bcdata$y)* C )
+```
+```{r}
+pchisq(1096.791, 1, lower.tail = FALSE)
+```
+
+3.
+The number of moths caught overnight in a trap is recorded on
+20 randomly selected days. The average night time temperature is also recorded.
+
+```{r}
+y <- c(4, 6, 2, 7, 9, 5, 5, 8, 7, 1, 0, 1, 2, 4, 10, 11, 7, 7, 4, 4)
+x <-  c(5, 10, 4, 6, 7, 3, 7, 4, 3, 3, 2, 4, 6, 8, 13, 11, 6, 3, 3, 3)
+moth <- as.data.frame(cbind(x,y))
+moth
+```
+
+We would like to model the number of moths using a GLM with average night time temperature
+as a covariate.
+
+```{r}
+model <- glm(y ~ x, data = moth, family = "poisson")
+model
+```
+
+Find fisher information matrix
+
+```{r}
+sum(-exp(1.0270 + 0.1028*moth$x))
+sum(-(moth$x) * exp(1.0270 + 0.1028*moth$x))
+sum(-(moth$x^2) *exp(1.0270 + 0.1028*moth$x))
+
+```
+Predict for x = 6.5
+```{r}
+predict.glm(model, newdata = data.frame(x=6.5), type = "response", se.fit = TRUE)
+```
+

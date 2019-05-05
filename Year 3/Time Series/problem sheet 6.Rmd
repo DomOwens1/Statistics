@@ -1,0 +1,93 @@
+---
+title: "TSA Sheet 6"
+output: html_notebook
+---
+3.
+Create a purely random normally distributed time series realization with mean 0 and variance 1
+```{r}
+long <- rnorm(8192)
+
+```
+
+Plot the data with
+```{r}
+ts.plot(long)
+
+```
+
+Compute and plot the raw periodogram
+```{r}
+rawp <- spec.pgram(long, taper = 0, detrend = FALSE,
+plot = FALSE)
+plot(rawp)
+
+```
+
+The periodogram plotted in the previous picture is on a log scale, and does not look much like a
+set of ??
+2
+random variables. We can turn this off using the following command
+```{r}
+plot(rawp, log="no")
+```
+
+In any case, both spectra look much too rough. R can smooth the spectra by using a technique
+called modified Daniell smoothing. In R the degree of smoothing is controlled by the spans
+argument to spec.pgram(). So try
+```{r}
+smop <- spec.pgram(long, spans=c(9,7), taper = 0,
+detrend = FALSE, plot = FALSE)
+plot(smop, ylim=c(1e-3, 10))
+
+```
+4.
+Compute the log of the lynx data using
+```{r}
+llynx <- log(lynx)
+ts.plot(llynx)
+```
+
+Guess what the period of the sinusoidal variation is - 
+This appears to be around 10 years.
+
+Compute the raw periodogram of the data (call it rawpl) and plot it. What do you see?
+```{r}
+rawpl <- spec.pgram(llynx, taper = 0, detrend = FALSE)
+```
+
+There should have been a peak at about 0.1. However, the raw periodogram is quite noisy so try
+the following two methods to smooth the periodogram:
+i. Use the spec.pgram() function with the spans=c(9,7) argument (as in the previous
+question).
+```{r}
+spec.pgram(llynx, taper = 0, detrend = FALSE, spans = c(9,7))
+```
+
+```{r}
+smopl2 <- spec.pgram(llynx, kernel=kernel("daniell", c(1,2)),
+taper = 0, detrend = FALSE, plot = FALSE)
+plot(smopl2)
+
+```
+
+To find out more accurately where the largest peak is. Type > locator(1)
+after you have plotted the smoothed spectrum in either case and click the mouse at the maximum
+value on the graph. The x and y coordinates of where you clicked will be returned allowing you
+to identify the frequency where the periodogram maxed out
+
+```{r}
+smopl2 <- spec.pgram(llynx, kernel=kernel("daniell", c(1,2)),
+taper = 0, detrend = FALSE, plot = FALSE)
+plot(smopl2)
+locator(1)
+```
+
+Using the spans smoothing method the maximum power occurs at around a frequency of 0.101.
+The equivalent peak in the kernel method is at about 0.103. Since the original data are measured
+in years this corresponds to approximately 9.6-9.9 years. Does this correspond to your
+original guess as to the period of the sinusoidal frequency of the lynx data? Note that the answer
+of anything between 9.6 and 9.9 years cannot be obtained directly from the time series or methods
+based in time like the autocorrelation function (i.e. we guessed somewhere between 9 and
+10 years) - 
+This does correspond to my observational estimate.
+

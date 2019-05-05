@@ -1,0 +1,93 @@
+---
+title: "Bayesian Modelling Assessed Homework Questions 3 and 4"
+output: HTML
+---
+
+3. Provide an answer to the above problem P1. In particular,
+a) (5 marks) For each county in the dataset, compute the average log-radon
+level of a house with a basement. Make a plot with these estimates on the
+y-axis and the number of observations per county on the x-axis. Add in the
+plot an horizontal line that represents the average log-radon level of a house
+with a basement for Minnesota.
+```{r}
+#select houses with basements
+radon_bm <- radon[radon$floor==1,]
+#find average and counts by county 
+county_means <- rep(0, 84)
+county_count <- rep(0, 84)
+for(i in 1:84){
+  county_means[i] <- mean(radon_bm$log.radon[radon_bm$county.index == i])
+  county_count[i] <- nrow(radon_bm[radon_bm$county.index == i,])
+}
+```
+```{r}
+#plot means against counts
+plot(county_count,county_means)
+#find overall mean and overlay as line
+state_mean <- mean(radon_bm$log.radon)
+abline(a=state_mean, b=0)
+```
+
+
+
+b) (15 marks) Using your model, predict for each county in the dataset the
+log-radon level of a house with a basement. Explain how these predictions
+have been computed from your model and make a plot with these estimates
+on the y-axis and the number of observations per county on the x-axis. Add
+in the plot an horizontal line that represents the average log-radon level of a
+house with a basement for Minnesota.
+```{r}
+#select estimates for parameters as a new vector
+pars <- summary(sample)$statistics[,1]
+#predict log radon for each county, assuming house has a basement, using model equation
+preds <- rep(0, 84)
+for(i in 1:84){
+  preds[i] <-  pars[1]*pars[i+4] + pars[2]
+}
+```
+```{r}
+#plot predictions against counts by county
+plot(county_count, preds)
+abline(a=state_mean, b=0)
+```
+Values for estimated parameters are substituted into the model equation, drawn from the "pars" vector, to obtain a prediction for each county the log-radon level of a house with a basement.
+
+
+
+
+c) (5 marks) Compare the `naive' estimates obtained in part 3.a) with the model
+based estimates obtained in part 3.b). Comment your results.
+```{r}
+#plot estimates against each other
+plot(county_means, preds)
+#find mean square error of both estimates
+mean((county_means-preds)^2)
+
+
+#find average log radon for houses with a basement in state
+state_mean
+
+##find average predicted log radon for houses with a basement in state
+(sum(preds*county_count))/nrow(radon_bm)
+
+
+```
+From the plot, we see from the linear relationship present that the predictions and means are strongly correlated; this is supported by the small value for the MSE. 
+The predictions underestimate the log radon value on average, as can be seen from the prediction average being lower than the observed average, though this is only by a small amount.
+
+
+4. (15 marks) Provide an answer to the above problem P2, that is use your model
+to predict the log-radon level of a house with no basement and of a house with a
+basement located in Cook, given that the soil uranium measurement for this county
+is equal to -0.504995982525783. Explain how your prediction has been computed
+from your model.
+```{r}
+u_cook <- -0.504995982525783
+#Predict the log-radon level of a house with no basement in the county of Cook
+pars[1]*u_cook 
+
+#Predict the log-radon level of a house with a basement in the county of Cook
+pars[1]*u_cook + pars[2]
+```
+Values for estimated parameters are substituted into the model equation, drawn from the "pars" vector, to obtain a prediction for the log-radon level of a house with no basement and of a house with a
+basement located in Cook.

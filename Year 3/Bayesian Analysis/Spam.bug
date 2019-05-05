@@ -1,0 +1,9 @@
+
+model{
+for(i in 1:n){
+x[i] ~ dbern(p[i])
+probit(p[i]) <- sum(theta*Z[i,])
+}
+theta ~ dmnorm(mu0 ,Omega0)
+Omega0<-inverse(Sigma0)
+}

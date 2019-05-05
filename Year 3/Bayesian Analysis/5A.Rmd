@@ -1,0 +1,222 @@
+---
+title: "Bayesian Modelling 5A"
+output: html_notebook
+---
+
+Let Y = R2 and µ(y) = µ1(y1|y2)µ2(y2) where µ1(·|y2) is the density of the N1(y2, 1)
+distribution and µ2(·) is the density of the t5(0, 1) distribution (i.e. the Student distribution with 5 degrees of freedom, location parameter 0 and scale parameter 1).
+The goal of this problem is to implement in R a Metropolis-Hastings (M-H) algorithm that can be
+used to approximate µ.
+To this aim we consider a M-H algorithm where the proposal distribution Q(y, d~y) is
+the N2(y, c??) distribution, with c > 0 and ?? = 
+( 1 0.3
+  0.3 1 ),
+  and where the starting value is
+y0 = (20, 20). Let T = 50 000 be the length of the trajectory we want to simulate.
+
+
+1. Using the code below, implement the M-H algorithm described above in R and, looking
+at the acceptance rate and at the trace plots, propose a value for c. Justify your
+choices.
+```{r}
+# Load the package MASS that can be used to sample from
+# multivariate normal distributions
+library(MASS)
+# Density of the distribution we want to sample from (in log)
+density_target<-function(y){
+return(dnorm(y[1],y[2],1,log=T)+dt(y[2],5,log=T))
+}
+# Function that samples from the proposal distribution
+simulate_proposal<-function(y, Sigma){
+return(mvrnorm(1,y,Sigma))
+}
+# Parameters to choose
+T<-50000 #length of the trajectory
+y0<-c(20,20) #starting value
+c<-5
+#THE CONSTANT TO CALIBRATE
+Sigma<-c*matrix(c(1,0.3,0.3,1),2,byrow=T) #covariance matrix of Q
+# To store the results
+chain<-matrix(0,T,2)
+acceptance_rate<-0
+#Run the Metropolis-Hastings algorithm
+chain[1,]<-y0
+mu0<-density_target(chain[1,])
+for(t in 2:T){
+yt<-simulate_proposal(chain[t-1,],Sigma)
+mu1<-density_target(yt)
+if(log(runif(1))<=(mu1-mu0)){
+chain[t,]<-yt
+mu0<-mu1
+acceptance_rate<-acceptance_rate+1
+}else{
+chain[t,]<-chain[t-1,]
+}
+}
+acceptance_rate<-acceptance_rate/T
+# Trace plots
+plot(1:T, chain[,1], xlab='t', ylab=expression(y[1]), type='l')
+plot(1:T, chain[,2], xlab='t', ylab=expression(y[2]), type='l')
+
+```
+
+2. It is a common practice to introduce a burn-in period, that is to discard the rst B
+iterations of the MCMC algorithm, where B is the time needed for the algorithm to
+be close to its stationary regime. Use the trace plots to propose a value for B.
+```{r}
+plot(1:5000, chain[1:5000,2], xlab='t', ylab=expression(y[2]), type='l')
+```
+
+3. The auto-correlation functions (ACFs) can be computed using the package coda which
+provides functions for analysing the output from MCMC simulations. Using the following code, estimate the ACF for the two coordinates of the Markov chain and revise
+your choice for c if needed.
+```{r}
+# Load the package coda
+library(coda)
+# Length of the Burn-in period
+B<-200
+# Convert the simulated chain into an "mcmc object"
+sample<-as.mcmc(chain[B:T,])
+# Compute the ACFs for lags k=1,...,50
+autocorr.plot(sample[,1],lag.max=50)
+autocorr.plot(sample[,2],lag.max=50)
+
+```
+
+4. We now want to estimate the expectation of f : Y ??? R under µ(y), i.e. the quantity
+µ(f) := ´
+int_Y f(y)dy. 
+
+Taking f : Y ??? R dened by f(y) = y1, y ??? Y, the estimate µ^T ???B(f) can be
+computed as follows:
+
+```{r}
+# Function of interest
+f<-function(y){
+return(y[,1])
+}
+# Compute function evaluations
+f_values<-f(sample)
+# Estimated value of mu(f)
+mean(f_values)
+```
+
+We saw that the asymptotic variance of ???(T ??? B) (^µT ???B(f) ??? µ(f)) is given by ??^2(f)
+
+
+Using the command spectrum0() of the package coda, compute an estimate ??^2_(T ???B)(f)
+of ??^2(f)/(T ??? B) using the following code
+
+```{r}
+
+spectrum0(f_values)$spec/length(f_values)
+```
+
+
+Compute also ??~^2_(T ???B)(f), the naive estimate of ??^2 (f)
+```{r}
+var(f_values)/length(f_values)
+```
+
+5. For i ??? {1, 2} let fi
+: Y ??? R be dened by fi(y) = yi
+, y ??? Y. Type the following
+command in R
+
+```{r}
+summary(sample)
+
+```
+
+Problem 2 (JAGS)
+
+
+To illustrate how JAGS can be run in from R let us consider the problem of approximating the posterior distribution
+
+??(??|x) ??? f(x|??)??1(µ|??^2)??2(1/??2), ?? = (µ, 1/??^2)
+
+where x ??? R, f(·|µ, ??) is the p.d.f. of the N1(µ, ??2
+) distribution, ??1(·|??
+2
+) is the p.d.f. of
+the N1(µ0, ??0??
+2
+) distribution and ??2(·) is the density of the Gamma(a0, b0) distribution.
+Then, it is easily checked that the distribution of µ given (x, 1/??2
+) is a normal distribution
+while the distribution of 1/??2 given (x, µ) is a gamma distribution, so that the Gibbs
+sampler is an appropriate MCMC algorithm to approximate ??(??|x).
+Below we take x = 3, µ0 = 0, ??0 = 1 and a0 = b0 = 2
+
+1. The rst step is to specify f(x, ??), the joint distribution of (X, ??). This step requires
+to write the model (expressed in BUGS notation) in a .bug le. This can be done
+using the following R code which writes µ in a le called Problem_2.bug
+
+```{r}
+# Load the package rjags
+library(rjags)
+# Write the model in the file `Problem_2.bug'
+cat('
+model{
+x ~ dnorm(mu,tau)
+mu ~ dnorm(mu_0, kappa_0*tau)
+tau ~ dgamma(a_0,b_0)
+kappa_0<-1/gamma_0
+}
+', file = 'Problem_2.bug')
+```
+
+2. The second step is to build the model using the command jags.model(), telling JAGS
+that we want to approximate f(x, ??) conditionally to x = 3 and supplying the parameters mu_0, gamma_0, a_0 and b_0 through the data argument, as in the following
+R code:
+```{r}
+mydata<- list(x=3, mu_0=0, gamma_0=1, a_0=2, b_0=2)
+mymu <- jags.model('Problem_2.bug', data = mydata)
+```
+To verify that JAGS has recognized that the distribution of µ given (x, 1/??2
+) is a
+normal distribution while the distribution of 1/??2 given (x, µ) is a gamma distribution
+we can type:
+```{r}
+list.samplers(mymu)
+```
+
+3. The third step is to generate a trajectory of the Markov chain so-defined. Let us first
+run the Gibbs sampler for a burn-in period of B = 10 000 iterations:
+```{r}
+# Length of the Burn-in period
+B<-10000
+# Burn-in
+update(mymu, n.iter=B)
+```
+
+
+Then, we generate a trajectory of length T = 10 000
+```{r}
+T<-10000
+sample <- coda.samples(mymu, c("mu", "tau"), n.iter = T)
+```
+
+
+Remark: If we run the above code a second time then the new trajectory will start
+at t =n.iter+1. This way we can run the above code until the Markov chain enters in
+its stationary regime.
+If we are only interested e.g. in mu we can run the following code:
+```{r}
+sample <- coda.samples(mymu, c("mu"), n.iter = T)
+```
+
+4. The last step is to assess the convergence of the Markov chain. The output of the
+coda_samples() command is an mcmc object (see Problem 1, part 3) and can therefore
+be directly analysed using the coda package. For instance:
+```{r}
+# Trace plot for the first component (i.e. for mu)
+traceplot(sample[,1])
+# ACF for the first component (i.e. for mu)
+autocorr.plot(sample[,1],lag.max=50)
+# Trace plots for all the components (i.e. for mu and tau)
+# and kernel density estimate of the marginal distributions
+plot(sample)
+
+
+```

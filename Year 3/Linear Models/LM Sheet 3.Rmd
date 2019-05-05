@@ -112,4 +112,3 @@ bc <- boxcox(lsdy.fit, lambda = seq(-2, 2, length.out=10))
 This is maximised outside the range (-2,2) so the transform is not justified.
 
 ///////////////////////////////////////////////////////////
-

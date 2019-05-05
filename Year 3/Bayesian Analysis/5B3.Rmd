@@ -1,0 +1,186 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+Problem 3 (ARCH models)
+Let p1, . . . , p101 be the daily closing prices of the S&P 500 index between 18/10/2018 and
+15/03/2019, and let xt = log(pt+1/pt), for t = 1, . . . , 100, be the corresponding daily logreturns. In this problem we use an ARCH (Generalized Auto-Regressive Conditionally
+Heteroscedastic) model to model the observation x := (x1, . . . , x100). An ARCH(q)
+model, which is a popular model for the log-returns of a financial asset, defined by X_t.
+
+. Let fq(x|??q) be the likelihood function of
+the model. We make the standard assumption that Pq
+i=1 ??i < 1, which implies that
+the stochastic process (Xt)t???1 dened in (1) is stationary. To incorporate this prior
+information we take as prior distribution for (??1, . . . , ??q) the uniform distribution on the
+set
+{y ??? R
+q
+>0
+:
+X
+q
+i=1
+yi < 1
+	
+}
+We let the Gamma(1, 1/2) distribution be the prior distribution for ?? and use the notation
+??q(??q) for the so-dened prior distribution on ??q. It can be shown that, for i = 1, . . . , q,
+the marginal distribution of ??i under ??q(??) is the Beta(1,q) distribution.
+The data1 are in the le SP500.txt and can be loaded in R as follows (assuming that
+your .R le is in the same folder as the DataSheet5 folder):
+
+```{r}
+# Load SP500 data
+p<-read.table('DataSheet5/ARCH/SP500.txt')
+# Compute log-returns
+x<-diff(log(p[,5]))
+
+```
+
+1. Plot all the marginal distributions of ??q(??q) for q = 1, 2. Is the prior distribution
+for ??1 non-informative in the sense of Laplace for q ??? {1, 2}?
+
+```{r}
+xset<-seq(0, 1, 0.01)
+plot(xset, dbeta(xset, 1, 1 ), type = "l")
+plot(xset, dbeta(xset, 1, 2 ), type = "l")
+```
+
+q = 1 has a non-informative prior, but q = 2 places more density at lower values of x.
+
+
+2. Consider first an ARCH(1) model.
+a) Implement in R a Metropolis-Hastings algorithm having
+??1(??1|x) ??? f1(x|??1)??1(??1)
+as invariant distribution, starting value ??1,0 = (0.01, 0.1) and where the proposal distribution Q(??1, d~??1) is the N2(??1, ??1) distribution. Propose a matrix
+??1, a burn-in period B and a length T for the simulated trajectory (burn-in
+period non-included). Justify your choices.
+```{r}
+# Load the package MASS that can be used to sample from
+# multivariate normal distributions
+library(MASS)
+# Density of the distribution we want to sample from (in log)
+density_target<-function(y){
+return(dnorm(y[1],y[2],1,log=T))
+}
+# Function that samples from the proposal distribution
+simulate_proposal<-function(y, Sigma){
+return(mvrnorm(1,y,Sigma))
+}
+# Parameters to choose
+T<-150000 #length of the trajectory
+y0<-c(0.01,0.1) #starting value
+c<-2.7 #THE CONSTANT TO CALIBRATE
+Sigma <- c*matrix(c(1,0.25,0.25,1),2,byrow=T) #covariance matrix of Q
+# To store the results
+chain<-matrix(0,T,2)
+acceptance_rate<-0
+#Run the Metropolis-Hastings algorithm
+chain[1,]<-y0
+
+mu0<-density_target(chain[1,])
+for(t in 2:T){
+yt<-simulate_proposal(chain[t-1,],Sigma)
+mu1<-density_target(yt)
+if(log(runif(1))<=(mu1-mu0)){
+chain[t,]<-yt
+mu0<-mu1
+acceptance_rate<-acceptance_rate+1
+}else{
+chain[t,]<-chain[t-1,]
+}
+}
+acceptance_rate<-acceptance_rate/T
+```
+
+```{r}
+plot(1:T, chain[,1], xlab='t', ylab=expression(y[1]), type='l')
+plot(1:T, chain[,2], xlab='t', ylab=expression(y[2]), type='l')
+```
+
+b) Plot the estimated marginal distributions of ??1(??1|x) and give a 99% condence interval for each of the corresponding posterior means.
+
+```{r}
+B<- 1500
+sample <- as.mcmc(chain[B:T,])
+plot(sample[,1], )
+plot(sample[,2])
+
+```
+
+
+
+
+
+3. Consider now an ARCH(2) model.
+a) Implement in R a Metropolis-Hastings algorithm having
+??2(??2|x) ??? f2(x|??2)??2(??2)
+as invariant distribution, starting value ??2,0 = (0.01, 0.1, 0.1) and where the
+proposal distribution Q(??2, d~??2) is the N3(??, ??2) distribution, with ??2 the
+matrix given in the le Sigma_2.txt:
+```{r}
+Sigma<-as.matrix(read.table('C:/Users/Dom/Documents/GitHub/Statistics/Year 3/Bayesian Analysis/DataSheet5/ARCH/Sigma_2.txt'))
+```
+
+Propose a burn-in period B and a length T for the simulated trajectory (burnin period non-included). Justify your choices.
+
+```{r}
+# Density of the distribution we want to sample from (in log)
+density_target<-function(y){
+return(dnorm(y[1],y[2],y[3],log=T))
+}
+# Function that samples from the proposal distribution
+simulate_proposal<-function(y, Sigma){
+return(mvrnorm(1,y,Sigma))
+}
+# Parameters to choose
+T<-50000 #length of the trajectory
+y0<-c(0.01,0.1,0.1) #starting value
+#c<-0.01 #THE CONSTANT TO CALIBRATE
+#Sigma<- matrix(c(1,0.6,0.6,1),2,byrow=T) #covariance matrix of Q
+# To store the results
+chain<-matrix(0,T,3)
+acceptance_rate<-0
+#Run the Metropolis-Hastings algorithm
+chain[1,,]<-y0
+
+mu0<-density_target(chain[1,,])
+for(t in 2:T){
+yt<-simulate_proposal(chain[t-1,,],Sigma)
+mu1<-density_target(yt)
+if(log(runif(1))<=(mu1-mu0)){
+chain[t,]<-yt
+mu0<-mu1
+acceptance_rate<-acceptance_rate+1
+}else{
+chain[t,,]<-chain[t-1,,]
+}
+}
+acceptance_rate<-acceptance_rate/T
+```
+
+
+b) Plot the estimated marginal distributions of ??2(??2|x) and give a 99% condence interval for each of the corresponding posterior means.
+
+
+
+
+4. Consider now the test, in the ARCH(2) model, of the hypothesis H0 : ??2 ??? 0.1
+against the alternative H1 : ??2 > 0.1.
+a) Provide an estimate and a 99% condence interval for ??2
+
+{??2 : ??2 ??? 0.1}|x).
+Do you accept H0 under the a0 ??? a1 loss function when a0 = a1?
+b) Compute an estimate of B
+??2
+01 (x), the Bayes factor for the test we are considering.
+c) Comment the results obtained in parts 4.a) and 4.b).
+
+
+
+
+
+5. Based on the results of part 4, choose between the ARCH(1) model and the
+ARCH(2) model

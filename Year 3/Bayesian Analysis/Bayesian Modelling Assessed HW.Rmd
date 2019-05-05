@@ -1,0 +1,181 @@
+---
+title: "Bayesian Modelling  Problem Sheet 6"
+output: html_notebook
+---
+
+Radon is a natural radioactive gas that is usually found in rocks and soils. Radon
+gas, which is for most people the single largest source of radiation, is known to be a
+source of lung cancer when breathed in high concentration. In particular, according to
+the United States Environmental Protection Agency (EPA), radon is the most frequent
+cause of lung cancer among non-smokers. Due to local dierences in geology, the level of
+the radon gas hazard diers from location to location, and it is therefore important to
+identify areas with high radon exposures to help home-owners to make decisions about
+measuring or remediating the radon in their house. More information about radon and
+its health eects can be found here: www.radon.com/radon_facts. 
+The dataset radon.txt contains radon measurements taken by the EPA in 917 randomly
+chosen houses located in 84 (out of 87) counties in the state of Minnesota. 
+
+
+```{r}
+radon <- read.table('DataSheet6/radon.txt', sep='')
+set.seed(333)
+library(MASS)
+library(rjags)
+library(coda)
+load.module('glm')
+
+```
+
+The first column of the dataset contains the 917 measurements of radon (in log) while
+the second column indicates if a measurement was taken in a basement (value 1) or in a
+first floor (value 0). This information is important to understand the level of radon in a
+given house since, as the radon comes from the soil, it enters more easily in a house when
+it is built into the ground. Columns three and four provide respectively the county name
+and the county index of the sampled house and the last column of the dataset gives a
+measurement of soil uranium (the ultimate source of radon) taken at the county level.
+
+The objective of this assignment is to use a Bayesian approach to solve the following
+two problems:
+
+P1 Predict the log-radon level of a house with a basement for each of the 84 counties
+in the dataset.
+P2 Predict the log-radon level of a house with no basement and of a house with a
+basement in the county of Cook, for which no measurements have been taken.
+
+2. Estimate your model. In particular:
+a) (15 marks) Implement your model in JAGS.
+
+
+```{r}
+#write model to radon.bug
+cat('
+model{  
+for(j in 1:M){
+theta[j] ~ dnorm(alpha*uu[j], sigma2^(-2))
+}
+for(i in 1:n){
+x[i] ~ dnorm( (theta[county.index[i]]) + beta*B[i], sigma^(-2))
+}
+
+alpha ~ dnorm(0,0.0001)
+beta ~ dnorm(0,0.001)
+sigma ~ dunif(0,100)
+sigma2 ~ dunif(0,10000)
+}', file='radon.bug')
+
+```
+```{r}
+#specify determined parts
+radon_data<-list(n=nrow(radon), M=max(radon$county.index), x=radon$log.radon, county.index = radon$county.index,
+B=radon$floor, uu = unique(radon$uu))
+#specify prior points
+radon_inits <- list(alpha=0,beta=0,sigma=1,sigma2=1)
+```
+```{r}
+#construct model in jags
+radon_mu<-jags.model('radon.bug',inits = radon_inits,data=radon_data)
+#verify we are sampling correct quantities, and using correct samplers
+list.samplers(radon_mu)
+```
+
+
+
+b) (15 marks) Simulate a trajectory of length T and justify your choice for T
+```{r}
+#set burn-in length
+Burn <- 2000
+#set trajectory length
+Tr <- 10000
+#update chain by burn-in length
+update(radon_mu, n.iter = Burn)
+#sample from distribution with correct quantities
+sample<-coda.samples(radon_mu, variable.names = c("alpha","theta","beta","sigma","sigma2"), n.iter=Tr)
+```
+
+```{r}
+#plot autocorrelations for parameters to verify convergence
+autocorr.plot(sample[,1:7], 100)
+#These have rapidly-declining autocorrelation, indicating the chain has converged for all parameters
+```
+
+
+```{r}
+traceplot(sample[,1:7])
+#These appear as white noise, centred on the parameter estimate, indicating the chain has converged to a stationary distribution
+summary(sample)$statistics
+#All the standard deviations are small, supporting convergence 
+```
+
+
+3. Provide an answer to the above problem P1. In particular,
+a) (5 marks) For each county in the dataset, compute the average log-radon
+level of a house with a basement. Make a plot with these estimates on the
+y-axis and the number of observations per county on the x-axis. Add in the
+plot an horizontal line that represents the average log-radon level of a house
+with a basement for Minnesota.
+```{r}
+#select houses with basements
+radon_bm <- radon[radon$floor==1,]
+#find average and counts by county 
+county_means <- rep(0, 84)
+county_count <- rep(0, 84)
+for(i in 1:84){
+  county_means[i] <- mean(radon_bm$log.radon[radon_bm$county.index == i])
+  county_count[i] <- nrow(radon_bm[radon_bm$county.index == i,])
+}
+```
+```{r}
+#plot means against counts
+plot(county_count,county_means)
+#find overall mean and overlay as line
+state_mean <- mean(radon_bm$log.radon)
+abline(a=state_mean, b=0)
+```
+
+b) (15 marks) Using your model, predict for each county in the dataset the
+log-radon level of a house with a basement. Explain how these predictions
+have been computed from your model and make a plot with these estimates
+on the y-axis and the number of observations per county on the x-axis. Add
+in the plot an horizontal line that represents the average log-radon level of a
+house with a basement for Minnesota.
+```{r}
+#select estimates for parameters as a new vector
+pars <- summary(sample)$statistics[,1]
+#predict log radon for each county, assuming house has a basement, using model equation
+preds <- rep(0, 84)
+for(i in 1:84){
+  preds[i] <-  pars[1]*pars[i+4] + pars[2]
+}
+```
+```{r}
+#plot predictions against counts by county
+plot(county_count, preds)
+abline(a=state_mean, b=0)
+```
+
+
+c) (5 marks) Compare the `naive' estimates obtained in part 3.a) with the model
+based estimates obtained in part 3.b). Comment your results.
+```{r}
+#plot estimates against each other
+plot(county_means, preds)
+#find mean square error of both estimates
+mean((county_means-preds)^2)
+```
+
+
+
+4. (15 marks) Provide an answer to the above problem P2, that is use your model
+to predict the log-radon level of a house with no basement and of a house with a
+basement located in Cook, given that the soil uranium measurement for this county
+is equal to -0.504995982525783. Explain how your prediction has been computed
+from your model.
+```{r}
+u_cook <- -0.504995982525783
+#Predict the log-radon level of a house with no basement in the county of Cook
+pars[1]*u_cook 
+
+#Predict the log-radon level of a house with a basement in the county of Cook
+pars[1]*u_cook + pars[2]
+```
+

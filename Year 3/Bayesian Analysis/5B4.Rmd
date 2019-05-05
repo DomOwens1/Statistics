@@ -1,0 +1,343 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+Problem 4 (Spam ltering)
+The goal of this problem is to build a classier that can be used to classify an email as
+a spam or as a non-spam. In this context, a classier is a function ?? : R
+d ??? {0, 1} that
+takes as input a d-dimensional vector z ??? R
+d
+containing information about the email
+(such as the occurrence of certain characters) and that returns as output the value 1 if
+the email is classied as a spam and the value zero otherwise.
+To this aim, the le spambase.data contains n = 4 601 observations {z~i
+, xi}
+n
+i=1, where
+xi = 1 if email i is a spam and xi = 0 otherwise while z~i ??? R
+57 is a vector containing
+57 attributes (or features). The description of the 57 features are given in the le spambase.names.txt while the le spambase.DOCUMENTATION.txt contains some summary
+statistics for each feature. In this dataset, about 40% of the emails are spam emails.
+A simple model that can be used for classication is the probit regression model which
+assumes that the observations are independent and such that
+Xi ??? Bernoulli
+??
+
+(1, z~i)
+T
+??
+
+
+, i = 1, . . . , n (2)
+where ?? is the cumulative density function of the N1(0, 1) distribution and ?? ??? R
+58
+.
+Using machine learning terminology, we partition the dataset into a training set {z~i
+, xi}
+ntrain
+i=1
+and a test set {z~i
+, xi}
+n
+i=ntrain+1. The training set, which contains about 80% of the observations (ntrain = 3680), will be used to build and estimate the model, while the test
+set will be used to estimate its classication error. (To simplify the notation here we do
+as if the training set contains the rst ntrain observations but in fact the elements of this
+set have been chosen randomly.)
+The training set2
+can be loaded in R as follows (assuming that your .R le is in the
+same folder than the DataSheet5 folder):
+```{r}
+train_set<-read.table('C:/Users/Dom/Documents/GitHub/Statistics/Year 3/Bayesian Analysis/DataSheet5/spam/spambase_train.txt')
+```
+
+The vector xtrain := {xi}
+ntrain
+i=1 and the (ntrain × 57) matrix Z~
+train := {z~i}
+ntrain
+i=1 can be
+obtained as follows:
+
+```{r}
+x_train<-as.matrix(train_set[,ncol(train_set)])
+Z_train<-as.matrix(train_set[,1:(ncol(train_set)-1)])
+```
+
+If we use the whole matrix Z~
+train to build our classier then we have to estimate 58
+parameters (one per feature plus one intercept) which may be challenging both from a
+computational point of view (i.e. running a Markov chain on a 58 dimensional space is
+complicated) and from a statistical point of view (i.e. the larger is the number of parameters we estimate the less precise the estimation is). Moreover, if too many parameters
+are introduced in the model there is a risk of overtting, namely that the estimated
+model corresponds too closely to the training data and thus provides poor out-of-sample
+predictions (i.e. a large classication error on the test set)
+
+The typical machine learning problem in this context is to choose the combination
+(j1, . . . , jk) of k ??? {1, . . . , 57} columns of Z~
+train that minimizes the prediction error of
+the classier. In other words, for dierent values of k and column indices (j1, . . . , jk), the
+model is estimated on the training set, its classication error on the test set is computed,
+and we retain the model that minimizes this latter.
+Here, we propose to keep columns (5,6,7,8,9,16,17,18,19,20,21,23,24, 45, 57) of Z~
+train
+(again, see the le spambase.names.txt to gure out what features these columns correspond to):
+```{r}
+keep<-c(5,6,7,8,9,16,17,18,19,20,21,23,24,45,57)
+Z_train<-Z_train[,keep]
+```
+
+We add an intercept in the model:
+```{r}
+Z_train<-cbind(rep(1,nrow(Z_train)),Z_train)
+```
+Let Ztrain denote the resulting ntrain × d matrix, with d = 16, and let zi ??? R
+d be the
+i-th row of Ztrain. For ?? ??? ?? := R
+d
+let
+~fz(x|??) = ??(z
+T
+??)
+xi
+
+1 ??? ??(z
+T
+??)
+1???x
+, z ??? R
+d
+, x ??? {0, 1} (3)
+so that, for i = 1, . . . , ntrain, the likelihood of observation xi given ?? is ~fzi
+(xi
+|??). To
+complete the Bayesian model we let ??(??) be the density of the Nd(µ0, ??0) distribution.
+We now show that this particular choice for ??(??) yields a Bayesian model such that
+the posterior distribution
+??(??|xtrain) ???
+nYtrain
+i=1
+~fzi
+(xi
+|??)??(??)
+can be eciently approximated using a Gibbs sampler. To this aim remark rst that
+assuming (2) (with (1, z~i) ??? R
+58 replaced by zi ??? R
+d
+) is equivalent to assuming that
+Yi ??? N1(z
+T
+i
+??, 1), Xi
+|Yi =
+(
+1, Yi > 0
+0, otherwise
+, i = 1, . . . , ntrain (4)
+where Y := (Y1, . . . , Yntrain ) is a vector of auxiliary variables.
+Using the result of Problem Sheet 1, Problem 2, it is easily checked that the full
+conditional distributions of the extended posterior distribution ??(??, y|xtrain) are given by
+??|Y, xtrain ??? Nd
+
+(Z
+T
+trainZtrain + ?????1
+0
+)
+???1
+
+??
+???1
+0 µ0 + Z
+T
+trainY
+
+,(Z
+T
+trainZtrain + ?????1
+0
+)
+???1
+
+Yi
+|??, Y???i
+, xtrain ???
+(
+T N (0,+???)
+
+z
+T
+i
+??, 1), xi = 1
+T N (??????,0]
+z
+T
+i
+??, 1), xi = 0, i = 1, . . . , ntrain
+where T N A
+
+µ, 1) denotes the N1(µ, 1) distribution truncated on A ??? R. Sampling from
+??|Y, xtrain is therefore trivial while ecient methods exist for sampling from a truncated
+normal distribution. This auxiliary variables approach has been proposed by Holmes, C. C., & Held, L. (2006). Bayesian auxiliary variable models for
+binary and multinomial regression. Bayesian analysis, 1(1), 145-168.
+
+1. Taking µ0 = (0, . . . , 0) and ??0 = 100Id (vague prior), use JAGS to get an approximation of ??(??|xtrain). Propose a burn-in period B and a length T for the simulated
+trajectory (burn-in period non-included). Justify your choices.
+To tell JAGS to use the auxiliary variables approach described above you need to
+load, before running the jags..model() command, the module glm:
+```{r}
+library(MASS)
+library(rjags)
+load.module('glm')
+```
+```{r}
+# Load the package rjags
+library(rjags)
+# Write the model in the file 
+cat('
+model{
+for(i in 1:n){
+x[i] ~ dbern(p[i])
+probit(p[i]) <- sum(theta*Z[i,])
+}
+theta ~ dmnorm(mu0 ,Omega0)
+Omega0<-inverse(Sigma0)
+}', file='Spam.bug')
+
+
+```
+```{r}
+spam_data<-list(n=nrow(x_train), x=c(x_train), Z=Z_train,
+mu0=rep(0,ncol(Z_train)),Sigma0=diag(100,ncol(Z_train)))
+spam_mu<-jags.model('Spam.bug', data=spam_data)
+```
+
+Remark: In JAGS you only need to implement the model (2), that is you do not
+need to implement the model (4) with the auxiliary variables Y1, . . . , Yntrain (the
+module glm does it for you).
+Warning: If you do not use the latest version of JAGS (i.e. JAGS 4.3.0) the
+module glm may not work correctly. To check that JAGS is indeed going to use
+the auxiliary variables approach described above you can type the command:
+```{r}
+list.samplers(spam_mu)
+
+```
+
+which should return glm::Holmes-Held if everything works well.
+
+```{r}
+update(spam_mu, n.iter=10000)
+
+```
+```{r}
+sample<-coda.samples(spam_mu,c('theta'), n.iter=20000)
+```
+```{r}
+traceplot(sample[,1])
+traceplot(sample[,8])
+traceplot(sample[,16])
+```
+
+```{r}
+autocorr.plot(sample[,1],50)
+autocorr.plot(sample[,8],50)
+autocorr.plot(sample[,16],50)
+
+```
+
+```{r}
+summary(sample)$statistics[,c(1,4)]
+```
+
+2. We now construct our classier ?? : R
+d ??? {0, 1}.
+a) Let z ??? R
+d
+, X0
+|(??, xtrain) ??? ~fz(x
+0
+|??) (i.e. X0
+is conditionally independent of
+Xtrain given ??) and ?? ??? ??(??|xtrain), with ~fz(·|??) as in (3). Show that the
+posterior distribution of X0 given xtrain is
+??(x
+0
+|xtrain) = ^
+??
+~fz(x
+0
+|??)??(??|xtrain)d??.
+
+
+
+b) Let z ??? R
+d and X0 be as in part 2.a). Using the a0???a1 loss function with a0 =
+a1 consider the Bayesian test H0 : X0 = 0 against the alternative H0 : X0 = 1.
+Write in R the function ??
+??
+xtrain : R
+d ??? {0, 1} which is such that ??
+??
+xtrain (z) = 1
+if H0 is accepted and zero otherwise. Let ?? = ??
+??
+xtrain be our classier.
+
+
+```{r}
+classifier<-function(Z,sample){
+proba<-apply( 1/(1+exp(-as.matrix(sample)%*%t(Z))),2,mean)
+return(0+(proba>= 0.5))
+}
+```
+
+3. We now want to use the test set to asses our model and the performance of the
+classier ?? dened in part 2.b).
+The test set can be loaded in R as follows:
+```{r}
+test_set<-read.table('C:/Users/Dom/Documents/GitHub/Statistics/Year 3/Bayesian Analysis/DataSheet5/spam/spambase_test.txt')
+```
+
+The vector xtest := {xi}
+n
+ntrain+1 and the matrix Z~
+test := {z~i}
+n
+ntrain+1 can be obtained
+as follows:
+```{r}
+x_test<-as.matrix(test_set[,ncol(test_set)])
+Z_test<-as.matrix(test_set[,1:(ncol(test_set)-1)])
+```
+
+We keep the same columns as for the training set:
+```{r}
+Z_test<-Z_test[,keep]
+```
+
+Finally, we add an intercept:
+```{r}
+Z_test<-cbind(rep(1,nrow(Z_test)),Z_test)
+```
+
+To simplify the notation let Itest = {ntrain + 1, . . . , n} and, for j = 0, 1, let Ij,test = 
+i ??? Itest : xi = j
+	
+.
+a) Compute the estimated value of ??(xi
+|xtrain) for all i ??? Itest. Using two separate boxplots, plot ??(xi
+|xtrain) for i ??? I0,test and ??(xi
+|xtrain) for i ??? I1,test.
+Comment the results.
+```{r}
+proba_test<-apply( 1/(1+exp(-as.matrix(sample)%*%t(Z_test))),2,mean)
+
+```
+
+```{r}
+boxplot(proba_test[x_test==1], proba_test[x_test==0],
+names = c('spam','non-spam'))
+
+```
+
