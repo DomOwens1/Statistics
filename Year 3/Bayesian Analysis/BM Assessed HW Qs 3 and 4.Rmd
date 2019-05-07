@@ -1,7 +1,18 @@
 ---
 title: "Bayesian Modelling Assessed Homework Questions 3 and 4"
-output: HTML
+output:
+  pdf_document: default
+  
 ---
+```{r}
+radon <- read.table('DataSheet6/radon.txt', sep='')
+set.seed(333)
+library(MASS)
+library(rjags)
+library(coda)
+load.module('glm')
+```
+
 
 3. Provide an answer to the above problem P1. In particular,
 a) (5 marks) For each county in the dataset, compute the average log-radon

@@ -1,6 +1,8 @@
 ---
-title: "Bayesian Modelling  Problem Sheet 6"
-output: html_notebook
+title: "Bayesian Modelling Problem Sheet 6"
+output:
+  pdf_document: default
+  html_document: default
 ---
 
 Radon is a natural radioactive gas that is usually found in rocks and soils. Radon
@@ -12,7 +14,7 @@ the radon gas hazard diers from location to location, and it is therefore import
 identify areas with high radon exposures to help home-owners to make decisions about
 measuring or remediating the radon in their house. More information about radon and
 its health eects can be found here: www.radon.com/radon_facts. 
-The dataset radon.txt contains radon measurements taken by the EPA in 917 randomly
+The dataset "radon.txt" contains radon measurements taken by the EPA in 917 randomly
 chosen houses located in 84 (out of 87) counties in the state of Minnesota. 
 
 
@@ -152,7 +154,7 @@ for(i in 1:84){
 plot(county_count, preds)
 abline(a=state_mean, b=0)
 ```
-
+Values for estimated parameters are substituted into the model equation, drawn from the "pars" vector, to obtain a prediction for each county the log-radon level of a house with a basement.
 
 c) (5 marks) Compare the `naive' estimates obtained in part 3.a) with the model
 based estimates obtained in part 3.b). Comment your results.
@@ -162,7 +164,8 @@ plot(county_means, preds)
 #find mean square error of both estimates
 mean((county_means-preds)^2)
 ```
-
+From the plot, we see from the linear relationship present that the predictions and means are strongly correlated; this is supported by the small value for the MSE. 
+The predictions underestimate the log radon value on average, as can be seen from the prediction average being lower than the observed average, though this is only by a small amount.
 
 
 4. (15 marks) Provide an answer to the above problem P2, that is use your model
@@ -178,4 +181,5 @@ pars[1]*u_cook
 #Predict the log-radon level of a house with a basement in the county of Cook
 pars[1]*u_cook + pars[2]
 ```
-
+Values for estimated parameters are substituted into the model equation, drawn from the "pars" vector, to obtain a prediction for the log-radon level of a house with no basement and of a house with a
+basement located in Cook.
